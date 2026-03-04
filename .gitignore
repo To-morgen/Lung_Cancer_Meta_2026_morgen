@@ -1,59 +1,110 @@
+# =========================================================
+# .gitignore (Bioinformatics / R / Python / HPC)
+# Philosophy: track code + configs + small key outputs;
+#             ignore IDE caches, environments, logs, and bulky data.
+# =========================================================
+
 # --- OS / Editor ---
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.swp
+*~
 
-# --- Python ---
+# --- RStudio / R ---
+.Rproj.user/        # MUST ignore: local IDE cache
+.Rhistory           # Recommended ignore: command history may leak paths/tokens
+.RData              # MUST ignore: workspace dump -> big + merge conflicts
+.Ruserdata          # Recommended ignore: user state/cache
+# NOTE: Do NOT ignore *.Rproj (project anchor should be tracked)
+
+# --- Python & Jupyter ---
 __pycache__/
 *.py[cod]
+*$py.class
 .ipynb_checkpoints/
 .venv/
-.env
+.env                # MUST ignore if storing secrets
+!.env.example       # Allow template for reproducible config
 
-# --- R ---
-.Rhistory
-.RData
-.Rproj.user/
-*.Rproj
+# --- Workflow & Environment (Snakemake/Conda/HPC) ---
+.snakemake/         # MUST ignore: Snakemake runtime metadata
+.conda/
+.mamba/
+# If you store only env YAMLs in envs/, keep YAMLs but ignore other things
+envs/*
+!envs/*.yml
+!envs/*.yaml
+
+slurm-*.out
+slurm-*.err
 
 # --- Logs / Temp / Cache ---
 logs/
 tmp/
 *.log
-*.out
 *.err
+core.*
 
-# --- Large data / results (keep only lightweight summaries) ---
-results/**
-figures/**
+# --- Data / Results / Figures (Code-Data Separation) ---
+# Key point: ignore bulky directories, but keep structure with .gitkeep
+data/
+results/
+figures/
 
-# Allow placeholder files
+# Keep directory placeholders (structure)
+!data/.gitkeep
 !results/.gitkeep
 !figures/.gitkeep
+!logs/.gitkeep
+!metadata/.gitkeep
+!scripts/.gitkeep
 
-# --- Common bioinformatics bulky outputs ---
+# OPTIONAL: allow small, publication-critical final outputs
+# (If you prefer "zero results in git", delete this block.)
+!results/tables/
+!results/tables/*.tsv
+!results/tables/*.csv
+!results/tables/*.txt
+
+!figures/final/
+!figures/final/*.pdf
+!figures/final/*.png
+!figures/final/*.tif
+!figures/final/*.tiff
+!figures/final/*.svg
+
+# --- Common Bioinformatics Bulky Formats ---
+# Sequencing / Alignment
 *.bam
 *.bai
 *.cram
 *.crai
 *.fastq
-*.fq
 *.fastq.gz
+*.fq
 *.fq.gz
 *.sam
+
+# Variant / Index
 *.vcf
 *.vcf.gz
 *.tbi
+
+# Single-cell & Spatial Objects
 *.h5ad
 *.loom
 *.rds
 *.h5
 *.mtx
+*.mtx.gz
+
+# Archives
 *.tar
 *.tar.gz
+*.tgz
 *.zip
-
-# local HPC symlink (do not track)
+*.gz
+# --- Data symlink ---
 data
-
