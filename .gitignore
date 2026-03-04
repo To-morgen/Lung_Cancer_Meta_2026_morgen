@@ -1,0 +1,16 @@
+# 屏蔽软连接目录
+data/
+results/
+
+# 屏蔽生信常见大文件格式
+*.fastq.gz
+*.bam
+*.h5ad
+*.rds
+*.mtx
+
+# 屏蔽运行日志与环境
+.snakemake/
+.conda/
+.mamba/
+*.log
