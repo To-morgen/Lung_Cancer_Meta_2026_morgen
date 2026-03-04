@@ -1,16 +1,59 @@
-# 屏蔽软连接目录
-data/
-results/
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# 屏蔽生信常见大文件格式
-*.fastq.gz
-*.bam
-*.h5ad
-*.rds
-*.mtx
+# --- Python ---
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+.env
 
-# 屏蔽运行日志与环境
-.snakemake/
-.conda/
-.mamba/
+# --- R ---
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# --- Logs / Temp / Cache ---
+logs/
+tmp/
 *.log
+*.out
+*.err
+
+# --- Large data / results (keep only lightweight summaries) ---
+results/**
+figures/**
+
+# Allow placeholder files
+!results/.gitkeep
+!figures/.gitkeep
+
+# --- Common bioinformatics bulky outputs ---
+*.bam
+*.bai
+*.cram
+*.crai
+*.fastq
+*.fq
+*.fastq.gz
+*.fq.gz
+*.sam
+*.vcf
+*.vcf.gz
+*.tbi
+*.h5ad
+*.loom
+*.rds
+*.h5
+*.mtx
+*.tar
+*.tar.gz
+*.zip
+
+# local HPC symlink (do not track)
+data
+
