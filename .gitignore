@@ -108,3 +108,24 @@ figures/
 *.gz
 # --- Data symlink ---
 data
+.Rproj.user
+
+# --- R / renv ---
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# root renv: keep lockfile + activate script, ignore installed libraries
+renv/library/
+renv/staging/
+renv/python/
+
+# nested subprojects
+**/.Rproj.user/
+**/.Rhistory
+**/.RData
+**/.Ruserdata
+**/renv/library/
+**/renv/staging/
+**/renv/python/
