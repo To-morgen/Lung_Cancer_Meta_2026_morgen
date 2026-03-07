@@ -108,7 +108,6 @@ figures/
 *.gz
 # --- Data symlink ---
 data
-.Rproj.user
 
 # --- R / renv ---
 .Rproj.user/
@@ -129,3 +128,7 @@ renv/python/
 **/renv/library/
 **/renv/staging/
 **/renv/python/
+
+# local scratch drafts
+scratch/*
+!scratch/.gitkeep
