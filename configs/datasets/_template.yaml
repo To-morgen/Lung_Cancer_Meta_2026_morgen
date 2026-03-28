@@ -1,0 +1,276 @@
+# ==============================================================================
+# Dataset Configuration Template
+# Path:    configs/datasets/_template.yaml
+# Purpose: 新数据集 onboarding 的标准配置模板
+#          复制本文件，按 dataset_id 命名规范重命名，填写所有字段后
+#          运行 workflow/intake/01_register_dataset.R 写入注册表
+#
+# 使用步骤：
+#   1. cp configs/datasets/_template.yaml \
+#         configs/datasets/<dataset_id>.yaml
+#   2. 按本文件注释填写所有字段
+#   3. source("workflow/intake/01_register_dataset.R")
+#      register_dataset_from_yaml("configs/datasets/<dataset_id>.yaml")
+#
+# 命名规范（dataset_id）：
+#   格式：<CLASS>_<Source>_<Subtype>_<Modality>_<ShortDesc>_<YYYYMMDD>_v<N>
+#   CLASS 前缀映射：
+#     PUB    → public_original
+#     VEND   → vendor_curated
+#     INT    → internally_curated
+#     ATLAS  → atlas_ready
+#     FREEZE → release_frozen
+#   示例：VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1
+#         PUB_GEO_LUAD_scRNA_GSE12345_20260101_v1
+#
+# YAML 空值规范：
+#   - 空值统一使用 ~ (YAML null)，不要写 "NA" 或留空
+#   - 日期字段统一使用引号包裹：download_date: "2026-01-01"
+#
+# Schema 版本：v1.1（对应 configs/registry/registry_schema.yaml）
+# 维护者：Morgen
+# ==============================================================================
+
+
+# ==============================================================================
+# 1. 身份标识 (Identity)
+# ==============================================================================
+
+# 全局唯一标识符（必填）
+# 必须与本 YAML 文件名（去掉 .yaml 后缀）完全一致
+# 同时用于：HPC 目录名、registry CSV、QC 报告目录名、Notion 记录
+dataset_id: REPLACE_ME_CLASS_Source_Subtype_Modality_ShortDesc_YYYYMMDD_vN
+
+# 人类可读展示名称（必填）
+# 用于报告标题、图表标注，可包含空格和特殊字符
+display_name: "REPLACE ME: 简短描述性名称"
+
+# 数据集类别（必填）
+# 允许值：public_original | vendor_curated | internally_curated |
+#         atlas_ready | release_frozen
+# 决定适用的 QC 流程路径（vendor → vendor_curated_qc；public → raw_qc）
+dataset_type: vendor_curated
+
+# 疾病大类（必填）
+# 示例：Lung Cancer | Pan-Cancer | Breast Cancer
+disease: "Lung Cancer"
+
+# 肿瘤亚型（必填）
+# 允许值：LUAD | LUSC | SCLC | NSCLC | Pan-Lung | Pan-Cancer | Other
+# 新亚型须先更新 configs/registry/registry_schema.yaml 再注册
+subtype: LUAD
+
+# 数据模态（必填）
+# 允许值：bulk | scrna | spatial | wes | proteomics | clinical | multi
+modality: bulk
+
+# 数据处理层级（必填）
+# 允许值：raw | processed | curated | atlas_ready
+# raw      → 未加工的原始数据
+# processed → 已有基础处理（如标准化、比对后）
+# curated  → 经本项目流程标准化后的数据
+# atlas_ready → 通过所有 QC 门控，可直接进入 Atlas 分析
+data_level: processed
+
+
+# ==============================================================================
+# 2. 来源与归属 (Provenance)
+# ==============================================================================
+
+# 数据来源机构 / 数据库 / 供应商（必填）
+# 示例：GEO | TCGA | ArrayExpress | Zenodo | AI生信 | 内部产出
+source_name: "REPLACE ME"
+
+# 公共库登录号（可选）
+# 示例：GSE72094 | TCGA-LUAD | E-MTAB-12345
+# vendor 或内部数据集填 ~
+source_accession: ~
+
+# 数据集负责人（必填）
+# 对应 SOP 第 16 节 Owner Responsibilities
+# 负责 QC 执行、Notion 更新、决策记录
+owner: Morgen
+
+
+# ==============================================================================
+# 3. 样本量声明 (Sample Counts)
+# ==============================================================================
+
+# 数据源声称的队列数（建议填写）
+# 来源：原始论文 / README / 供应商说明
+# 初始不确定时填 ~，QC 完成后补充
+n_cohorts_claimed: ~
+
+# 数据源声称的样本总数（建议填写）
+# 来源同上
+n_samples_claimed: ~
+
+# 对齐后的实际可用样本数（初始注册时留空）
+# 由 harmonization 流程完成后自动或手动回填
+n_samples_aligned: ~
+
+
+# ==============================================================================
+# 4. 流程状态 (Pipeline Status)
+# ==============================================================================
+# 注意：以下字段由流程脚本自动更新，初始注册时按默认值填写即可
+# 手动修改状态字段前请确认已通过对应 QC 门控（见 SOP 第 9 节）
+
+# 生命周期当前阶段（必填）
+# 完整状态序列：
+#   discovered → downloaded → registered → intake_qc → harmonized →
+#   analysis_qc → analysis_ready → integrated → released → archived
+# 初始注册时填 registered
+status: registered
+
+# Intake QC 门控状态（必填）
+# 允许值：pending | pass | warning | fail
+# fail 时禁止流向 harmonize（硬性门控，见 SOP Gate 1）
+# 初始注册时填 pending
+intake_qc_status: pending
+
+# 标准化流程状态（必填）
+# 允许值：pending | done | skipped | fail
+# 初始注册时填 pending
+harmonization_status: pending
+
+# Analysis QC 门控状态（必填）
+# 允许值：pending | pass | warning | fail
+# fail 时禁止流向 atlas integration（硬性门控，见 SOP Gate 2）
+# 初始注册时填 pending
+analysis_qc_status: pending
+
+
+# ==============================================================================
+# 5. 分析角色与纳入决策 (Role & Decision)
+# ==============================================================================
+
+# 该数据集在 Atlas 分析框架中的功能定位（建议填写）
+# 允许值：discovery | validation | exploratory | excluded | undecided
+# 初始注册时可填 undecided，待 analysis QC 后确认
+atlas_role: undecided
+
+# 纳入决策（建议填写）
+# 允许值：included | excluded | conditional | pending
+# conditional 表示有条件纳入，需在 notes 字段附 Notion 决策链接
+# 初始注册时填 pending
+inclusion_decision: pending
+
+
+# ==============================================================================
+# 6. 时间戳 (Timestamps)
+# ==============================================================================
+# 格式要求：YYYY-MM-DD（必须加引号，防止 YAML 将日期解析为 Date 对象）
+
+# 文件下载到 HPC 的日期（建议填写）
+download_date: "2026-01-01"
+
+# 首次写入注册表的日期（必填）
+# 通常为今天
+register_date: "2026-01-01"
+
+# 最近一次字段更新的日期（必填）
+# 每次修改本 YAML 或由流程脚本更新字段时同步更新此日期
+last_update: "2026-01-01"
+
+
+# ==============================================================================
+# 7. HPC 存储路径 (Paths)
+# ==============================================================================
+# 路径规范：使用相对于项目根目录的路径（经 data/ symlink 解析）
+# 禁止使用绝对路径，以保证 HPC 账号迁移时的可移植性
+#
+# HPC 目录结构约定（见 SOP 第 6 节）：
+#   data/raw/vendor_original/<dataset_id>/    ← vendor 原始数据
+#   data/raw/public_original/<dataset_id>/    ← 公共库原始数据
+#   data/processed/curated/<modality>/<dataset_id>/   ← 标准化后
+#   data/processed/atlas_ready/<subtype>/<modality>/<dataset_id>/
+
+paths:
+  # 原始下载文件的根目录（必填）
+  # vendor_curated 示例：data/raw/vendor_original/<dataset_id>/
+  # public_original 示例：data/raw/public_original/<dataset_id>/
+  raw_root: "data/raw/vendor_original/REPLACE_ME_DATASET_ID/"
+
+  # 文件清单目录（可选，02_manifest_check.R 完成后填入）
+  manifest_root: ~
+
+  # QC 报告输出目录（建议填写）
+  # 示例：data/processed/qc/<dataset_id>/intake/
+  qc_root: "data/processed/qc/REPLACE_ME_DATASET_ID/"
+
+  # 标准化中间产物存放路径（建议填写）
+  # 由 harmonize 流程使用
+  stage_root: "data/processed/curated/bulk/REPLACE_ME_DATASET_ID/"
+
+
+# ==============================================================================
+# 8. 文件清单 (Files)
+# ==============================================================================
+# 结构说明：
+#   files:
+#     <object_name>:           ← 数据对象逻辑名称（与业务语义绑定）
+#       <format>: <filename>   ← 格式键 → 文件名（相对于 paths.raw_root）
+#
+# 格式键约定：
+#   qs     → .qs / .qs2 格式（推荐，读写速度最快）
+#   rds    → .rds 格式（R 原生，兼容性最好）
+#   csv    → .csv 格式（表格数据）
+#   tsv    → .tsv 格式（表格数据）
+#   h5ad   → .h5ad 格式（AnnData，用于 scRNA / Spatial）
+#   loom   → .loom 格式
+#   mtx    → 10x Genomics Market Matrix 格式（通常需配合 barcodes/features）
+#
+# canonical 格式（首选读取格式）须放在第一个键
+# 若有多种格式备份，全部列出，但 QC 脚本只读 canonical 格式
+#
+# 示例（vendor_curated bulk 数据集）：
+# files:
+#   cell_infiltration:
+#     qs: "immune_infiltration_all_cohorts.qs"
+#     csv: "immune_infiltration_all_cohorts.csv"   # 备用格式
+#   symbol:
+#     qs: "gene_expression_symbol_all_cohorts.qs"
+#   clinical:
+#     csv: "clinical_metadata_all_cohorts.csv"
+#
+# 示例（public_original scRNA 数据集）：
+# files:
+#   raw_counts:
+#     mtx: "matrix.mtx.gz"
+#   barcodes:
+#     tsv: "barcodes.tsv.gz"
+#   features:
+#     tsv: "features.tsv.gz"
+#   metadata:
+#     csv: "cell_metadata.csv"
+
+files:
+  # 请根据实际数据对象替换以下示例条目
+  # 每个对象对应一个逻辑数据实体
+  REPLACE_object_name_1:
+    qs: "REPLACE_filename.qs"          # canonical 格式（首选）
+    # csv: "REPLACE_filename.csv"      # 备用格式（可选，取消注释）
+
+  REPLACE_object_name_2:
+    qs: "REPLACE_filename_2.qs"
+
+
+# ==============================================================================
+# 9. 备注 (Notes)
+# ==============================================================================
+# 自由文本，记录以下任何信息：
+#   - 已知数据质量问题
+#   - 特殊处理说明
+#   - 与 Notion 决策 / 问题单的链接
+#   - 版本变更说明
+#   - 供应商沟通记录要点
+# 若无备注填 ~
+notes: ~
+
+# 示例：
+# notes: >
+#   供应商提供的队列数量（22）与原始论文（21）不一致，
+#   原因：将 TCGA-LUAD 拆分为两个子队列。
+#   Notion 决策链接：https://www.notion.so/xxx
+#   已知问题：GSE12345 队列缺失 OS 字段，analysis QC 时需特殊处理。
