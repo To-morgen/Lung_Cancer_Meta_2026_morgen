@@ -1,0 +1,84 @@
+# ==============================================================================
+# Dataset Configuration File
+# Schema Version: 1.0
+# Path Convention: configs/datasets/<dataset_id>.yaml
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. 身份标识 (Identity)
+# ------------------------------------------------------------------------------
+dataset_id:   VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1
+display_name: AI生信 LUAD 22 cohorts 3019 samples
+
+dataset_type: vendor_curated
+disease:      Lung Cancer
+subtype:      LUAD
+modality:     bulk
+data_level:   raw
+
+# ------------------------------------------------------------------------------
+# 2. 来源与归属 (Provenance)
+# ------------------------------------------------------------------------------
+source_name:      AI生信
+source_accession: ~          # FIX: 原为字符串 "NA"，改用 ~ 表示 R NULL/NA
+
+owner: Morgen
+
+# ------------------------------------------------------------------------------
+# 3. 样本量声明 (Sample Counts)
+# ------------------------------------------------------------------------------
+n_cohorts_claimed: 22
+n_samples_claimed: 3019
+n_samples_aligned: ~         # FIX: 原为字符串 "NA"，对齐后填入实际值
+
+# ------------------------------------------------------------------------------
+# 4. 流程状态 (Pipeline Status)
+# ------------------------------------------------------------------------------
+status:                registered
+intake_qc_status:      pending
+harmonization_status:  pending
+analysis_qc_status:    pending
+
+# ------------------------------------------------------------------------------
+# 5. 分析角色与纳入决策 (Role & Decision)
+# ------------------------------------------------------------------------------
+atlas_role:         exploratory
+inclusion_decision: conditional
+
+# ------------------------------------------------------------------------------
+# 6. 时间戳 (Timestamps) — 格式强制 YYYY-MM-DD
+# ------------------------------------------------------------------------------
+download_date: "2026-03-04"
+register_date: "2026-03-07"
+last_update:   "2026-03-07"
+
+# ------------------------------------------------------------------------------
+# 7. 备注 (Notes)
+# ------------------------------------------------------------------------------
+notes: "Vendor-provided LUAD bulk package; pending intake QC."
+
+# ------------------------------------------------------------------------------
+# 8. 路径配置 (Paths) — 均为相对于项目根目录的相对路径
+# ------------------------------------------------------------------------------
+paths:
+  raw_root:      data/raw/vendor_original/VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1/original
+  manifest_root: data/raw/vendor_original/VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1/manifest
+  qc_root:       results/qc/VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1/intake
+  stage_root:    data/processed/curated/bulk/VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1/staging
+
+# ------------------------------------------------------------------------------
+# 9. 文件清单 (Files)
+# FIX: 原版扁平列举 6 个 key（qs/rds/rda 三份），语义混乱。
+# 改为按数据对象分组，canonical 格式为 .qs，其余为 fallback 备用。
+# 下游脚本统一读取 .qs，仅在 .qs 损坏时使用 fallback。
+# ------------------------------------------------------------------------------
+files:
+  cell_infiltration:
+    qs:  Cell-infiltration-list.qs    # canonical — 下游首选读取格式
+    rds: Cell-infiltration-list.rds   # fallback
+    rda: Cell-infiltration-list.rda   # fallback
+
+  symbol:
+    qs:  symbol.qs                    # canonical — 下游首选读取格式
+    rds: symbol.rds                   # fallback
+    rda: symbol.rda                   # fallback

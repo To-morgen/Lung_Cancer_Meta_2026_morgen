@@ -151,6 +151,18 @@ renv::init(bare = TRUE)
 
 ```
 
+## Dataset Classes
+
+- public_original
+- vendor_curated
+- internally_curated
+- atlas_ready
+- release_frozen
+
+
+## Dataset Lifecycle
+
+discovered → downloaded → registered → intake_qc → harmonized → analysis_qc → atlas_ready → integrated → released → archived
 
 
 ---
@@ -199,6 +211,15 @@ options(repos = BiocManager::repositories())
 
 * **Cause:** Outdated system `cmake`.
 * **Fix:** Use `conda` or `mamba` to prepare the build toolchain before installing `arrow` within a module.
+
+
+## Running workflow scripts
+
+- Formal project workflow scripts should be launched from **RStudio Web**.
+- Do not use bare `Rscript` from the shell if Terminal R and RStudio Web differ.
+- If command-line execution is required, use the explicit `Rscript` binary associated with the RStudio Web runtime.
+
+
 
 ---
 

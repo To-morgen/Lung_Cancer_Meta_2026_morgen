@@ -1,0 +1,4 @@
+dataset_id,step1_register,step2_manifest,step3_intake_qc,overall,note,run_timestamp
+VEND_Test_LUAD_Bulk_Batch1_20260101_v1,pass,fail: [Error] 以下字段不在注册表 schema 中，更新终止: hpc_manifest_root,NA,fail,Step 2 Manifest 失败，请确认文件已完整下载,2026-03-27 14:18:35
+VEND_Test_LUAD_Bulk_Batch2_20260101_v1,pass,fail: [Error] 以下字段不在注册表 schema 中，更新终止: hpc_manifest_root,NA,fail,Step 2 Manifest 失败，请确认文件已完整下载,2026-03-27 14:18:36
+VEND_Test_LUAD_Bulk_Batch3_20260101_v1,pass,fail: invalid format '%d'; use format %s for character objects,NA,fail,Step 2 Manifest 失败，请确认文件已完整下载,2026-03-27 14:18:36
