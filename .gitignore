@@ -132,3 +132,22 @@ renv/python/
 # local scratch drafts
 scratch/*
 !scratch/.gitkeep
+
+# === Private configs (unpublished sample-specific) ===
+configs_private/
+!configs_private/.gitkeep
+
+# === Subset test data ===
+*_subset/
+.env.sh
+
+# Phase 1 — Cell Ranger outputs (tracked by path, not by git)
+*.bam
+*.bam.bai
+*.bam.csi
+*.h5
+*.cloupe
+cellranger_out/
+fastq/
+fastq_subset/
+*.fastq.gz
