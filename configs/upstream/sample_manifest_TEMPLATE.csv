@@ -1,0 +1,2 @@
+sample_id,group,replicate,species,strain,disease_model,platform,chemistry,fastq_dir,fastq_prefixes,n_lanes
+EXAMPLE_01,treatment,1,mouse,C57BL/6,LLC,10x_chromium,auto,/path/to/fastq/EXAMPLE_01,"EXAMPLE_01-1,EXAMPLE_01-2",2

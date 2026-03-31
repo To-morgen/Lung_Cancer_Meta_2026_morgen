@@ -1,0 +1,25 @@
+# ============================================================
+# Cell Ranger Default Parameters (PUBLIC TEMPLATE)
+# ============================================================
+# Per-dataset overrides go in configs_private/datasets/<id>.yaml
+
+tool: "cellranger"
+subcommand: "count"
+
+# Resources (adjust per HPC)
+localcores: 16
+localmem: 64
+
+# Chemistry: "auto" lets Cell Ranger detect from reads
+chemistry: "auto"
+
+# Reference genomes (common choices)
+references:
+  human: "refdata-gex-GRCh38-2024-A"
+  mouse: "refdata-gex-GRCm39-2024-A"
+
+# Include introns (recommended for pre-mRNA / snRNA-seq)
+include_introns: true
+
+# Expected cells (optional; Cell Ranger can auto-detect)
+# expect_cells: 10000

@@ -1,0 +1,38 @@
+# ============================================================
+# scRNA-seq QC Default Parameters (PUBLIC TEMPLATE)
+# ============================================================
+
+# Per-sample cell-level QC
+cell_filter:
+  min_nFeature: 200
+  max_nFeature: 5000
+  min_nCount: 500
+  max_mito_pct: 20
+
+# Mito gene patterns (species-specific)
+mito_pattern:
+  human: "^MT-"
+  mouse: "^mt-"
+
+# Ribo gene patterns (optional QC metric)
+ribo_pattern:
+  human: "^RP[SL]"
+  mouse: "^Rp[sl]"
+
+# Ambient RNA removal
+ambient:
+  method: "SoupX"
+  # SoupX params
+  soupx_contamination_range: [0.01, 0.5]
+  soupx_round_to_int: true
+
+# Doublet detection
+doublet:
+  method: "scDblFinder"
+  expected_doublet_rate: "auto"
+
+# Normalization
+normalization:
+  method: "LogNormalize"
+  scale_factor: 10000
+  n_variable_features: 2000

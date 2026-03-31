@@ -1,0 +1,57 @@
+# ============================================================
+# Dataset Config Template: internally_generated
+# ============================================================
+# Copy this to configs_private/datasets/<dataset_id>.yaml
+# Fill in actual values. DO NOT COMMIT the filled version.
+
+dataset_id: "<DATASET_ID>"
+dataset_class: "internally_generated"
+owner: "<owner>"
+species: "<human|mouse>"
+strain: "<e.g. C57BL/6>"
+disease_model: "<e.g. LLC_lung_cancer>"
+modality: "scrna"
+platform: "10x_chromium"
+vendor: "<e.g. Novogene>"
+n_samples: 0
+
+# ---- Experimental Design ----
+groups:
+  group_name:
+    description: "<description>"
+    samples: ["sample_01", "sample_02"]
+
+comparisons:
+  - name: "<group_A>_vs_<group_B>"
+    numerator: "<group_A>"
+    denominator: "<group_B>"
+    purpose: "<biological question>"
+
+# ---- HPC Paths ----
+fastq_source: "<original vendor delivery path>"
+project_data_root: "<data_center path for this dataset>"
+cellranger_out: "{project_data_root}/cellranger_out"
+curated_out: "<curated output path>"
+
+# ---- Alignment ----
+alignment:
+  tool: "cellranger"
+  version: "<version>"
+  reference: "<refdata path>"
+  chemistry: "auto"
+  localcores: 16
+  localmem: 64
+
+# ---- QC Thresholds (override defaults) ----
+qc:
+  min_nFeature: 200
+  max_nFeature: 6000
+  max_mito_pct: 15
+  min_nCount: 500
+  ambient_method: "SoupX"
+  doublet_method: "scDblFinder"
+
+# ---- Normalization ----
+normalization:
+  method: "LogNormalize"
+  scale_factor: 10000
