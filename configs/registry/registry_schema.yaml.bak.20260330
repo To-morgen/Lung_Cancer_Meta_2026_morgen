@@ -1,0 +1,292 @@
+# ==============================================================================
+# Dataset Registry Schema
+# Path:    metadata/registry/registry_schema.yaml
+# Purpose: 定义 dataset_registry.csv 的列规范（类型、必填性、允许值）
+#          供 utils_registry.R 中的 validate_registry() 机器读取校验
+# ==============================================================================
+
+schema_version: "1.1"
+last_updated:   "2026-03-07"
+maintainer:     Morgen
+
+# 所有列按逻辑分组定义
+# required:       true  → upsert 时为空则 ERROR（硬性门控）
+# required:       warn  → upsert 时为空则 WARNING（软性提示）
+# required:       false → 允许为空，无提示
+# allowed_values: ~     → 不限制（自由文本）
+# type:           string / date / integer / enum
+
+columns:
+
+  # ----------------------------------------------------------------------------
+  # 1. 身份标识 (Identity)
+  # ----------------------------------------------------------------------------
+  dataset_id:
+    group:         identity
+    type:          string
+    required:      true
+    allowed_values: ~
+    pattern:       "^(PUB|VEND|INT|ATLAS|FREEZE)_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+_.*_\\d{8}_v\\d+$"
+    description:   >
+      全局唯一标识符，格式: CLASS_Source_Subtype_Modality_ShortDesc_YYYYMMDD_vX。
+      必须与 YAML 文件名、HPC 目录名、QC 报告目录名完全一致。
+
+  display_name:
+    group:         identity
+    type:          string
+    required:      true
+    allowed_values: ~
+    description:   "人类可读的数据集展示名称，用于报告和图表标注。"
+
+  dataset_type:
+    group:         identity
+    type:          enum
+    required:      true
+    allowed_values:
+      - public_original
+      - vendor_curated
+      - internally_curated
+      - atlas_ready
+      - release_frozen
+    description:   "数据集类别，决定适用的 QC 流程路径。"
+
+  disease:
+    group:         identity
+    type:          string
+    required:      true
+    allowed_values: ~
+    description:   "疾病大类，例如 Lung Cancer、Pan-Cancer。"
+
+  subtype:
+    group:         identity
+    type:          string
+    required:      true
+    allowed_values:
+      - LUAD
+      - LUSC
+      - SCLC
+      - NSCLC
+      - Pan-Lung
+      - Pan-Cancer
+      - Other
+    description:   "肿瘤亚型。新亚型须先更新此 schema 再注册。"
+
+  modality:
+    group:         identity
+    type:          enum
+    required:      true
+    allowed_values:
+      - bulk
+      - scrna
+      - spatial
+      - wes
+      - proteomics
+      - clinical
+      - multi
+    description:   "数据模态类型。"
+
+  data_level:
+    group:         identity
+    type:          enum
+    required:      true
+    allowed_values:
+      - raw
+      - processed
+      - curated
+      - atlas_ready
+    description:   "数据处理层级，反映文件的加工程度。"
+
+  # ----------------------------------------------------------------------------
+  # 2. 来源与归属 (Provenance)
+  # ----------------------------------------------------------------------------
+  source_name:
+    group:         provenance
+    type:          string
+    required:      true
+    allowed_values: ~
+    description:   "数据来源机构、数据库或供应商名称（例如 GEO、TCGA、AI生信）。"
+
+  source_accession:
+    group:         provenance
+    type:          string
+    required:      false
+    allowed_values: ~
+    description:   "公共库登录号（如 GSE12345）；vendor 数据集可为 NA。"
+
+  owner:
+    group:         provenance
+    type:          string
+    required:      true
+    allowed_values: ~
+    description:   "该数据集的责任人姓名，对应 SOP 第 16 节 Owner Responsibilities。"
+
+  # ----------------------------------------------------------------------------
+  # 3. 样本量声明 (Sample Counts)
+  # ----------------------------------------------------------------------------
+  n_cohorts_claimed:
+    group:         sample_counts
+    type:          integer
+    required:      warn
+    allowed_values: ~
+    description:   "数据源声称的队列数，来自 YAML 配置。"
+
+  n_samples_claimed:
+    group:         sample_counts
+    type:          integer
+    required:      warn
+    allowed_values: ~
+    description:   "数据源声称的样本总数，来自 YAML 配置。"
+
+  n_samples_aligned:
+    group:         sample_counts
+    type:          integer
+    required:      false
+    allowed_values: ~
+    description:   "对齐后的实际可用样本数，QC 通过后填入。初始注册时允许为空。"
+
+  # ----------------------------------------------------------------------------
+  # 4. 流程状态 (Pipeline Status)
+  # ----------------------------------------------------------------------------
+  status:
+    group:         pipeline_status
+    type:          enum
+    required:      true
+    allowed_values:
+      - discovered
+      - downloaded
+      - registered
+      - intake_qc
+      - harmonized
+      - analysis_qc
+      - analysis_ready
+      - integrated
+      - released
+      - archived
+    description:   "数据集当前所处的生命周期阶段，对应 SOP 第 4 节。"
+
+  intake_qc_status:
+    group:         pipeline_status
+    type:          enum
+    required:      true
+    allowed_values:
+      - pending
+      - pass
+      - warning
+      - fail
+    description:   "Intake QC 门控状态。fail 时禁止流向 harmonize。"
+
+  harmonization_status:
+    group:         pipeline_status
+    type:          enum
+    required:      true
+    allowed_values:
+      - pending
+      - done
+      - skipped
+      - fail
+    description:   "标准化流程状态。"
+
+  analysis_qc_status:
+    group:         pipeline_status
+    type:          enum
+    required:      true
+    allowed_values:
+      - pending
+      - pass
+      - warning
+      - fail
+    description:   "Analysis QC 门控状态。fail 时禁止流向 atlas integration。"
+
+  # ----------------------------------------------------------------------------
+  # 5. 分析角色与纳入决策 (Role & Decision)
+  # ----------------------------------------------------------------------------
+  atlas_role:
+    group:         role_decision
+    type:          enum
+    required:      warn
+    allowed_values:
+      - discovery
+      - validation
+      - exploratory
+      - excluded
+      - undecided
+    description:   "数据集在 Atlas 分析框架中的功能定位。"
+
+  inclusion_decision:
+    group:         role_decision
+    type:          enum
+    required:      warn
+    allowed_values:
+      - included
+      - excluded
+      - conditional
+      - pending
+    description:   "数据集纳入决策，conditional 表示有条件纳入（需附 Notion 决策链接）。"
+
+  # ----------------------------------------------------------------------------
+  # 6. 时间戳 (Timestamps)
+  # ----------------------------------------------------------------------------
+  download_date:
+    group:         timestamps
+    type:          date
+    required:      warn
+    pattern:       "^\\d{4}-\\d{2}-\\d{2}$"
+    allowed_values: ~
+    description:   "文件下载到 HPC 的日期，格式 YYYY-MM-DD。"
+
+  register_date:
+    group:         timestamps
+    type:          date
+    required:      true
+    pattern:       "^\\d{4}-\\d{2}-\\d{2}$"
+    allowed_values: ~
+    description:   "首次写入注册表的日期，格式 YYYY-MM-DD。"
+
+  last_update:
+    group:         timestamps
+    type:          date
+    required:      true
+    pattern:       "^\\d{4}-\\d{2}-\\d{2}$"
+    allowed_values: ~
+    description:   "最近一次字段更新的日期，格式 YYYY-MM-DD。"
+
+  # ----------------------------------------------------------------------------
+  # 7. HPC 路径 (Paths)
+  # ----------------------------------------------------------------------------
+  hpc_raw_root:
+    group:         paths
+    type:          string
+    required:      true
+    allowed_values: ~
+    description:   "相对于项目根目录的原始数据路径（经 data/ symlink 解析）。"
+
+  hpc_manifest_root:
+    group:         paths
+    type:          string
+    required:      false
+    allowed_values: ~
+    description:   "文件清单目录路径，manifest_check 完成后填入。"
+
+  hpc_qc_root:
+    group:         paths
+    type:          string
+    required:      warn
+    allowed_values: ~
+    description:   "QC 报告输出目录路径。"
+
+  hpc_stage_root:
+    group:         paths
+    type:          string
+    required:      warn
+    allowed_values: ~
+    description:   "标准化中间产物存放路径（staging 区）。"
+
+  # ----------------------------------------------------------------------------
+  # 8. 备注 (Notes)
+  # ----------------------------------------------------------------------------
+  notes:
+    group:         notes
+    type:          string
+    required:      false
+    allowed_values: ~
+    description:   "自由文本备注，记录特殊说明、已知问题或 Notion 决策链接。"

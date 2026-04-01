@@ -3,7 +3,7 @@
 # 03_cellranger_subset_test.sh — Create FASTQ subset and run Cell Ranger test
 #
 # Usage:
-#   bash workflow/upstream/03_cellranger_subset_test.sh \
+#   bash workflow/scrna/01_alignment/03_cellranger_subset_test.sh \
 #       --sample A1_1 \
 #       --n-reads 1000000 \
 #       --cores 8 \
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/functions/cellranger_utils.sh"
+source "${SCRIPT_DIR}/../functions/cellranger_utils.sh"
 
 SAMPLE=""
 N_READS=1000000

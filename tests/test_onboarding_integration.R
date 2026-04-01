@@ -22,10 +22,10 @@ suppressPackageStartupMessages({
 # Section 0：加载被测脚本
 # ==============================================================================
 
-source(here("scripts",           "utils_registry.R"))
+source(here("scripts", "utils", "utils_registry.R"))
 source(here("workflow", "intake", "01_register_dataset.R"))
 source(here("workflow", "intake", "02_manifest_check.R"))
-source(here("workflow", "qc",     "01_vendor_curated_qc.R"))
+source(here("workflow", "bulk", "qc", "01_vendor_curated_qc.R"))
 source(here("workflow",           "run_onboarding.R"))
 
 # 保存原始全局常量（每个 test_that 结束后恢复）

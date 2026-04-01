@@ -3,12 +3,12 @@
 # 02_cellranger_qc_summary.sh — Generate QC summary from Cell Ranger outputs
 #
 # Usage:
-#   bash workflow/upstream/02_cellranger_qc_summary.sh \
+#   bash workflow/scrna/01_alignment/02_cellranger_qc_summary.sh \
 #       --output-subdir full \
 #       --samples "A1_1 A1_2 FL_1 FL_2 mc_1 mc_2"
 #
 # Or auto-detect all completed samples:
-#   bash workflow/upstream/02_cellranger_qc_summary.sh --output-subdir full --auto
+#   bash workflow/scrna/01_alignment/02_cellranger_qc_summary.sh --output-subdir full --auto
 #
 # Outputs:
 #   - Console: formatted QC table
@@ -17,7 +17,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/functions/cellranger_utils.sh"
+source "${SCRIPT_DIR}/../functions/cellranger_utils.sh"
 
 OUTPUT_SUBDIR="full"
 SAMPLES=""

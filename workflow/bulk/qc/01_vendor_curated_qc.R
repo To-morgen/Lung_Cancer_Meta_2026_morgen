@@ -1,4 +1,4 @@
-# workflow/qc/01_vendor_curated_qc.R
+# workflow/bulk/qc/01_vendor_curated_qc.R
 #
 # 职责：
 #   对 vendor_curated 类数据集执行 Intake QC 门控检查（Gate 1）。
@@ -38,7 +38,7 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-source(here("scripts", "utils_registry.R"))
+source(here("scripts", "utils", "utils_registry.R"))
 
 # qs 包按需加载（加载 .qs 格式必须）
 HAS_QS <- requireNamespace("qs", quietly = TRUE)
@@ -969,8 +969,8 @@ if (interactive()) {
   } else {
     stop(paste(
       "用法:",
-      "  Rscript workflow/qc/01_vendor_curated_qc.R                      # 批量 QC",
-      "  Rscript workflow/qc/01_vendor_curated_qc.R <dataset_id 或 path> # 单数据集",
+      "  Rscript workflow/bulk/qc/01_vendor_curated_qc.R                      # 批量 QC",
+      "  Rscript workflow/bulk/qc/01_vendor_curated_qc.R <dataset_id 或 path> # 单数据集",
       sep = "\n"
     ))
   }

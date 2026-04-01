@@ -1,0 +1,85 @@
+# ============================================================================
+# scrna_qc_params.yaml — scRNA-seq QC & Analysis Parameters
+# Priority: dataset private config > this file > hardcoded defaults
+# ============================================================================
+
+species: "mouse"
+
+# ──────────────────────────────────────
+# Phase 2: QC Filtering
+# ──────────────────────────────────────
+
+cell_filter:
+  # MAD-based adaptive filtering (primary method)
+  method: "MAD"                 # "MAD" or "fixed"
+  n_mad: 3                     # standard: 3 (Lun et al., 2016)
+  log_transform:               # which metrics to filter in log10 space
+    - "nFeature_RNA"
+    - "nCount_RNA"
+  linear:                      # which metrics to filter in linear space (upper only)
+    - "percent.mt"
+
+  # Hard floor/ceiling (safety net, even when using MAD)
+  hard_thresholds:
+    min_genes: 200             # absolute minimum genes per cell
+    min_umi: 500               # absolute minimum UMI per cell
+    max_mt_pct: 20             # absolute maximum mito % (MAD cannot exceed this)
+
+gene_filter:
+  min_cells: 3                 # gene must be detected in >= min_cells
+
+# SoupX
+soupx:
+  auto_estimate: true
+
+# Doublet detection (runs AFTER QC filtering)
+doublet_detection:
+  method: "scDblFinder"
+  seed: 42
+
+# ──────────────────────────────────────
+# Phase 3: Normalization
+# ──────────────────────────────────────
+
+normalization:
+  method: "SCTransform"        # "SCTransform" or "LogNormalize"
+  n_variable_features: 3000
+  vars_to_regress: []          # populated after cell cycle assessment
+                               # options: ["CC.Difference"], ["S.Score", "G2M.Score"], []
+
+cell_cycle:
+  score: true                  # always score
+  regress_strategy: "assess_first"   # "none" | "full" | "difference" | "assess_first"
+  # "assess_first": score → visualize → decide (recommended for tumor studies)
+
+# ──────────────────────────────────────
+# Phase 4: Integration
+# ──────────────────────────────────────
+
+integration:
+  method: "Harmony"            # "Harmony" | "CCA" | "RPCA"
+  group_by: "sample_id"        # batch variable
+  n_pcs: 30                    # PCs for integration
+
+clustering:
+  resolutions: [0.3, 0.5, 0.8, 1.0, 1.2]   # test multiple
+  default_resolution: 0.8
+  algorithm: 4                 # 1=Louvain, 4=Leiden
+
+reduction:
+  umap_dims: 30
+  umap_n_neighbors: 30
+  umap_min_dist: 0.3
+
+# ──────────────────────────────────────
+# Phase 5: Annotation
+# ──────────────────────────────────────
+
+annotation:
+  auto_method: "SingleR"
+  reference_datasets:
+    - "celldex::MouseRNAseqData"
+    - "celldex::ImmGenData"
+  marker_test: "wilcox"        # FindAllMarkers test
+  min_pct: 0.25
+  logfc_threshold: 0.25

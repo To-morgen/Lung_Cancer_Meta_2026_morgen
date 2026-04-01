@@ -36,7 +36,7 @@ suppressPackageStartupMessages({
 
 # 加载注册表 CRUD 工具层
 # 提供：upsert_registry_entry / parse_nullable / %||% / REGISTRY_PATH / SCHEMA_PATH
-source(here("scripts", "utils_registry.R"))
+source(here("scripts", "utils", "utils_registry.R"))
 
 # ==============================================================================
 # 常量 (Constants)

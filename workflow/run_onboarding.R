@@ -30,13 +30,13 @@ suppressPackageStartupMessages({
 })
 
 # 加载工具层（提供 read_registry / safe_patch / REGISTRY_PATH 等）
-source(here("scripts",           "utils_registry.R"))
+source(here("scripts",   'utils',        "utils_registry.R"))
 
 # 加载三个步骤脚本（仅加载函数定义，不触发执行入口）
 # 注：各脚本的 if(interactive()) / if(sys.nframe()==0) 块在 source 时不会执行
 source(here("workflow", "intake", "01_register_dataset.R"))
 source(here("workflow", "intake", "02_manifest_check.R"))
-source(here("workflow", "qc",     "01_vendor_curated_qc.R"))
+source(here("workflow", 'bulk', 'qc', '01_vendor_curated_qc.R'))
 
 # ==============================================================================
 # 常量 (Constants)

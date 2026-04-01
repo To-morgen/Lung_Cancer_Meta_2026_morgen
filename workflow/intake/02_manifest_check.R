@@ -34,7 +34,7 @@ suppressPackageStartupMessages({
   library(fs)       # 跨平台文件系统操作（file_size / file_info）
 })
 
-source(here("scripts", "utils_registry.R"))
+source(here("scripts", "utils", "utils_registry.R"))
 
 # ==============================================================================
 # 常量 (Constants)

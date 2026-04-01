@@ -5,7 +5,7 @@
 # Module:  upstream / alignment
 #
 # Usage:
-#   bash workflow/upstream/01_cellranger_count.sh \
+#   bash workflow/scrna/01_alignment/01_cellranger_count.sh \
 #       --dataset INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1 \
 #       --samples "A1_1 A1_2 FL_1 FL_2 mc_1 mc_2" \
 #       --cores 32 \
@@ -14,7 +14,7 @@
 #       --output-subdir full
 #
 # Or run all samples auto-detected from fastq/ directory:
-#   bash workflow/upstream/01_cellranger_count.sh \
+#   bash workflow/scrna/01_alignment/01_cellranger_count.sh \
 #       --dataset INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1 \
 #       --auto
 #
@@ -28,7 +28,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/functions/cellranger_utils.sh"
+source "${SCRIPT_DIR}/../functions/cellranger_utils.sh"
 
 # ---- Defaults ----
 CORES=32
