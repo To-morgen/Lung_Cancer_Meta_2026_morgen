@@ -98,7 +98,7 @@ for (sid in SAMPLES) {
     post_md <- sobj_filtered@meta.data
     filter_summary[[sid]] <- data.frame(
       sample            = sid,
-      group             = sobj$group[1],
+      group             = unname(sobj$group[1]),
       n_before          = n_before,
       n_after           = n_after,
       pct_removed       = round((n_before - n_after) / n_before * 100, 2),

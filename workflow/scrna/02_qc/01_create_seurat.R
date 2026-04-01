@@ -25,7 +25,6 @@ SAMPLE_GROUPS <- load_sample_groups()
 QC_PARAMS     <- load_qc_params()
 out_dirs      <- scrna_output_dirs("02_qc")
 
-# Additional output dir for raw (unfiltered) Seurat objects
 raw_dir <- file.path(out_dirs$base, "raw_seurat")
 dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -45,24 +44,36 @@ for (sid in SAMPLES) {
     if (!file.exists(soupx_file)) stop("SoupX output not found: ", soupx_file)
     mat <- readRDS(soupx_file)
 
+    # ── FIX 1: Convert dgTMatrix → dgCMatrix (Seurat v5 compatibility) ──
+    if (inherits(mat, "dgTMatrix") || inherits(mat, "TsparseMatrix")) {
+      log_msg(sprintf("%s: Converting %s → dgCMatrix", sid, class(mat)[1]))
+      mat <- as(mat, "CsparseMatrix")
+    }
+
+    log_msg(sprintf("%s: matrix %d genes × %d cells", sid, nrow(mat), ncol(mat)))
+    log_msg(sprintf("%s: first 3 barcodes: %s", sid, paste(head(colnames(mat), 3), collapse = ", ")))
+
     # Create Seurat object (minimal gene filter, NO cell filter)
     sobj <- CreateSeuratObject(
       counts       = mat,
       project      = sid,
       min.cells    = QC_PARAMS$min_cells_per_gene,
-      min.features = 0   # ← 不过滤任何细胞，留给 Step 02 MAD 处理
+      min.features = 0
     )
 
-    # Add sample metadata
+    log_msg(sprintf("%s: Seurat created — %d cells, %d genes", sid, ncol(sobj), nrow(sobj)))
+    log_msg(sprintf("%s: first 3 cell names: %s", sid, paste(head(colnames(sobj), 3), collapse = ", ")))
+
+    # ── FIX 2: Use unname() to avoid named-vector barcode matching ──
     sobj$sample_id <- sid
-    sobj$group     <- SAMPLE_GROUPS[sid]
+    sobj$group     <- unname(SAMPLE_GROUPS[sid])
 
     # Add QC metrics
     sobj <- add_mito_pct(sobj, pattern = QC_PARAMS$mito_pattern)
     sobj <- add_ribo_pct(sobj, pattern = QC_PARAMS$ribo_pattern)
     sobj <- add_hemo_pct(sobj, species = QC_PARAMS$species)
 
-    # Log2 metrics for reference
+    # Log10 metrics for reference
     sobj$log10_nFeature <- log10(sobj$nFeature_RNA + 1)
     sobj$log10_nCount   <- log10(sobj$nCount_RNA + 1)
 
@@ -74,7 +85,7 @@ for (sid in SAMPLES) {
     md <- sobj@meta.data
     create_summary[[sid]] <- data.frame(
       sample        = sid,
-      group         = SAMPLE_GROUPS[sid],
+      group         = unname(SAMPLE_GROUPS[sid]),
       n_cells       = ncol(sobj),
       n_genes       = nrow(sobj),
       median_genes  = median(md$nFeature_RNA),
@@ -85,13 +96,16 @@ for (sid in SAMPLES) {
       stringsAsFactors = FALSE
     )
 
-    log_msg(sprintf("%s: ✅ %d cells, %d genes, median_mt=%.1f%%",
-                    sid, ncol(sobj), nrow(sobj), median(md$percent.mt)))
+    log_msg(sprintf("%s: ✅ %d cells, %d genes, median_mt=%.1f%%, median_ribo=%.1f%%",
+                    sid, ncol(sobj), nrow(sobj),
+                    median(md$percent.mt), median(md$percent.ribo)))
 
   }, error = function(e) {
     log_msg(sprintf("%s: ❌ FAILED — %s", sid, e$message), "ERROR")
+    # Print full traceback for debugging
+    log_msg(sprintf("%s: Traceback: %s", sid, paste(capture.output(traceback()), collapse = "\n")), "DEBUG")
     create_summary[[sid]] <<- data.frame(
-      sample = sid, group = SAMPLE_GROUPS[sid],
+      sample = sid, group = unname(SAMPLE_GROUPS[sid]),
       n_cells = NA, n_genes = NA, median_genes = NA,
       median_umi = NA, median_mt = NA, median_ribo = NA, median_hb = NA,
       stringsAsFactors = FALSE
@@ -103,5 +117,6 @@ for (sid in SAMPLES) {
 
 summary_df <- do.call(rbind, create_summary)
 fwrite(summary_df, file.path(out_dirs$reports, "raw_seurat_summary.csv"))
+log_msg(sprintf("Summary → %s", file.path(out_dirs$reports, "raw_seurat_summary.csv")))
 cat("\n"); print(summary_df)
 cat("\n========== Seurat creation complete ==========\n")

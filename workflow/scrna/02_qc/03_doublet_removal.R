@@ -98,7 +98,7 @@ for (sid in SAMPLES) {
 
     doublet_summary[[sid]] <- data.frame(
       sample       = sid,
-      group        = sobj$group[1],
+      group        = unname(sobj$group[1]),
       n_input      = n_before,
       n_singlet    = n_singlet,
       n_doublet    = n_doublet,
