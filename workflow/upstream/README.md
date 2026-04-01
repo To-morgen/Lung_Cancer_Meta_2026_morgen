@@ -1,39 +1,39 @@
-# Upstream scRNA-seq Pipeline
+# Workflow: Upstream (Alignment & Raw Processing)
 
-This directory contains the **from-scratch** single-cell RNA-seq processing pipeline,
-designed to take raw FASTQ files through to a registered-ready Seurat object.
+## Scripts
 
-## Scope
+| Script | Purpose | Input | Output |
+|--------|---------|-------|--------|
+| `01_cellranger_count.sh` | Run Cell Ranger count for scRNA-seq samples | FASTQ files | Filtered/raw matrices, BAM, QC |
+| `02_cellranger_qc_summary.sh` | Generate QC summary table from Cell Ranger outputs | Cell Ranger outs | `qc_summary.csv` + console report |
+| `03_cellranger_subset_test.sh` | Validate setup with subsampled FASTQs | FASTQ files | Subset Cell Ranger output |
 
-Handles `internally_generated` datasets — data produced by our own lab and sequenced
-by commercial vendors (e.g., Novogene).
+## Shared Functions
 
-## Pipeline Steps
+- `functions/cellranger_utils.sh` — Reusable functions for Cell Ranger operations
 
-| Step | Script | Tool | Input | Output |
-|------|--------|------|-------|--------|
-| 0 | `00_create_subset.sh` | seqtk | Full FASTQ | Subset FASTQ (testing) |
-| 1 | `01_run_cellranger.sh` | Cell Ranger | FASTQ + reference | per-sample outs/ |
-| 2 | `02_ambient_rna_removal.R` | SoupX | raw + filtered matrix | corrected Seurat |
-| 3 | `03_doublet_detection.R` | scDblFinder | Seurat object | Seurat + doublet labels |
-| 4 | `04_per_sample_qc.R` | Seurat | Seurat + labels | filtered Seurat |
-| 5 | `05_merge_and_normalize.R` | Seurat v5 | list of Seurat objects | merged object |
-| 6 | `06_to_registered.R` | custom | merged object | registered-ready object |
+## Usage Examples
 
-## Interface Design
+```bash
+# Subset test (validate before full run)
+bash workflow/upstream/03_cellranger_subset_test.sh \
+    --sample A1_1 --n-reads 1000000 --cores 8 --mem 32
 
-Each step communicates through:
-- **Manifest CSV files** (metadata interface)
-- **Standardized Seurat objects** (data interface)
+# Full run (all samples)
+nohup bash workflow/upstream/01_cellranger_count.sh \
+    --dataset INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1 \
+    --auto --cores 32 --mem 128 \
+    > logs/cellranger_full.log 2>&1 &
 
-This means individual tools at each layer can be swapped without breaking downstream steps.
+# QC summary
+bash workflow/upstream/02_cellranger_qc_summary.sh --output-subdir full --auto
+Interface Contract
+All upstream scripts:
 
-## Configuration
-
-- **Public templates**: `configs/upstream/` (committed to Git)
-- **Private instances**: `configs_private/datasets/` (git-ignored, contains sample-level details)
-
-## Execution
-
-All R scripts should be run from **RStudio Web** or via the RStudio-associated `Rscript` binary.
-Shell scripts (Cell Ranger) can be run directly in terminal via `nohup`.
+Source .env.sh for paths (DS_RAW, CELLRANGER_PATH, CELLRANGER_REF)
+Read FASTQ from {DS_RAW}/fastq/{sample_id}/
+Write output to {DS_RAW}/cellranger_out/{subdir}/{sample_id}/
+Return exit code 0 on success, non-zero on failure
+Support --help flag
+Support --auto for sample auto-detection
+Support idempotent re-runs (skip completed samples)
