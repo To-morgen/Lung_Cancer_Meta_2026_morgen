@@ -18,6 +18,7 @@ source(here("scripts", "utils", "utils_io.R"))
 
 #' Load QC parameters with priority chain:
 #'   dataset private config → project params → hardcoded defaults
+
 load_qc_params <- function() {
   # Hardcoded defaults (safety net)
   defaults <- list(
@@ -25,7 +26,7 @@ load_qc_params <- function() {
     filter_method      = "MAD",
     n_mad              = 3,
     min_genes          = 200,
-    max_genes          = Inf,       # no hard upper when using MAD
+    max_genes          = Inf,
     min_umi            = 500,
     max_mt_pct         = 20,
     min_cells_per_gene = 3,
@@ -39,46 +40,45 @@ load_qc_params <- function() {
   if (file.exists(proj_path)) {
     proj <- yaml::read_yaml(proj_path)
     if (!is.null(proj$cell_filter)) {
-      cf <- proj$cell_filter
-      defaults$filter_method <- cf$method %||% defaults$filter_method
-      defaults$n_mad         <- cf$n_mad %||% defaults$n_mad
-      if (!is.null(cf$hard_thresholds)) {
-        defaults$min_genes  <- cf$hard_thresholds$min_genes %||% defaults$min_genes
-        defaults$min_umi    <- cf$hard_thresholds$min_umi %||% defaults$min_umi
-        defaults$max_mt_pct <- cf$hard_thresholds$max_mt_pct %||% defaults$max_mt_pct
+      for (k in names(proj$cell_filter)) {
+        defaults[[k]] <- proj$cell_filter[[k]]
       }
     }
-    if (!is.null(proj$gene_filter)) {
-      defaults$min_cells_per_gene <- proj$gene_filter$min_cells %||% defaults$min_cells_per_gene
-    }
-    if (!is.null(proj$doublet_detection)) {
-      defaults$doublet_seed <- proj$doublet_detection$seed %||% defaults$doublet_seed
-    }
-    defaults$species <- proj$species %||% defaults$species
+    # Pass through additional top-level sections
+    if (!is.null(proj$normalization))  defaults$normalization  <- proj$normalization
+    if (!is.null(proj$cell_cycle))     defaults$cell_cycle     <- proj$cell_cycle
     log_msg("QC params: loaded project config")
   }
 
-  # Dataset-specific config (highest priority)
+  # Dataset-level overrides
   tryCatch({
     ds_cfg <- load_dataset_config()
-    if (!is.null(ds_cfg$qc)) {
-      qc <- ds_cfg$qc
-      # Dataset values override but do NOT disable MAD
-      defaults$max_mt_pct    <- qc$max_mito_pct %||% defaults$max_mt_pct
-      defaults$mito_pattern  <- qc$mito_pattern %||% defaults$mito_pattern
-      defaults$ribo_pattern  <- qc$ribo_pattern %||% defaults$ribo_pattern
+    if (!is.null(ds_cfg$qc_overrides)) {
+      for (k in names(ds_cfg$qc_overrides)) {
+        defaults[[k]] <- ds_cfg$qc_overrides[[k]]
+      }
+      log_msg("QC params: dataset overrides applied")
     }
-    defaults$species <- ds_cfg$species %||% defaults$species
-    log_msg("QC params: dataset overrides applied")
   }, error = function(e) {
-    log_msg(sprintf("QC params: no dataset config (%s)", e$message), "warn")
+    log_msg(sprintf("QC params: no dataset overrides (%s)", e$message), "WARN")
   })
 
-  log_msg(sprintf("  method=%s, n_mad=%d, hard_min_genes=%d, hard_max_mt=%.0f%%",
-                   defaults$filter_method, defaults$n_mad,
-                   defaults$min_genes, defaults$max_mt_pct))
-  return(defaults)
+  # Derive patterns from species
+  if (defaults$species == "mouse") {
+    defaults$mito_pattern <- "^mt-"
+    defaults$ribo_pattern <- "^Rp[sl]"
+  } else if (defaults$species == "human") {
+    defaults$mito_pattern <- "^MT-"
+    defaults$ribo_pattern <- "^RP[SL]"
+  }
+
+  log_msg(sprintf("  method=%s, n_mad=%d, hard_min_genes=%d, hard_max_mt=%d%%",
+                  defaults$filter_method, defaults$n_mad,
+                  defaults$min_genes, defaults$max_mt_pct))
+
+  defaults
 }
+
 
 #' Load sample list from dataset config
 load_sample_list <- function() {

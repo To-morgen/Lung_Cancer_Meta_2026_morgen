@@ -44,6 +44,7 @@ doublet_detection:
 normalization:
   method: "SCTransform"        # "SCTransform" or "LogNormalize"
   n_variable_features: 3000
+  n_pcs: 50
   vars_to_regress: []          # populated after cell cycle assessment
                                # options: ["CC.Difference"], ["S.Score", "G2M.Score"], []
 
@@ -83,3 +84,5 @@ annotation:
   marker_test: "wilcox"        # FindAllMarkers test
   min_pct: 0.25
   logfc_threshold: 0.25
+
+

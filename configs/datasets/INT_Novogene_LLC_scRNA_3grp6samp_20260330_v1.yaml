@@ -48,3 +48,23 @@ notes: >
   10x Chromium 3', Novogene sequencing. Species: mouse.
   Tracked independently from human atlas (DEC-001).
   TODO: Extend schema to add IGEN prefix, internally_generated type, LLC subtype.
+
+samples:
+  mc_1:
+    group: "mc"
+    replicate: 1
+  mc_2:
+    group: "mc"
+    replicate: 2
+  FL_1:
+    group: "FL"
+    replicate: 1
+  FL_2:
+    group: "FL"
+    replicate: 2
+  A1_1:
+    group: "A1"
+    replicate: 1
+  A1_2:
+    group: "A1"
+    replicate: 2
