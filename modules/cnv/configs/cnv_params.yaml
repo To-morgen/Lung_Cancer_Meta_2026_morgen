@@ -1,0 +1,30 @@
+# ============================================================================
+# cnv_params.yaml — CNV inference parameters
+# ============================================================================
+
+species: "mouse"
+
+# ── Input ──
+input:
+  # seurat_object: "results/scrna/06_annotate/objects/seurat_singler_annotated.rds"
+  seurat_object: "results/scrna/06_annotate/objects/seurat_annotated.rds"
+
+
+# ── SCEVAN ──
+scevan:
+  organism: "mouse"
+  par_cores: 8
+  subclones: true           # detect subclones within tumor
+  downsample: null          # null = full; integer = subsample cell count
+
+  # Reference (normal) clusters for CNV baseline
+  # From Phase 6 marker analysis:
+  #   3=Neutrophil, 4=T cell, 5=Macrophage, 6=B cell,
+  #   11=Endothelial, 14=Fibroblast, 15=NK
+  # Set to "auto" to let SCEVAN auto-detect
+  reference_clusters: [3, 4, 5, 6, 11, 14, 15]
+
+# ── Output ──
+output:
+  module_results: "results"
+  main_results: "results/scrna/10_cnv"
