@@ -1,0 +1,27 @@
+cluster,celltype_L1,celltype_L2,confidence,key_markers,notes
+1,Tumor_putative,Twist1+ EMT cells,medium,"Twist1,Vim,Fn1",CNV pending; EMT features
+2,Tumor_putative,Postn+ mesenchymal cells,medium,"Postn,Cilp",CNV pending; tumor vs CAF unresolved
+3,Myeloid,Neutrophils,high,"Ngp,S100a8,S100a9,Ly6g",
+4,Lymphoid,Activated T cells,high,"Icos,Cd3d,Cd3e",CD4/Treg-like
+5,Myeloid,Resident macrophages,high,"Fcrls,C1qc,Cd68",tissue-resident
+6,Lymphoid,Naive B cells,high,"Ighd,Cd79a,Ms4a1",
+7,Cycling,Cycling cells (G2M/S),medium,"Mki67,Top2a,Birc5",82% S+G2M; mixed origin
+8,Myeloid,Inflammatory neutrophils,high,"Cxcl3,S100a8,S100a9",
+9,Myeloid,Inflammatory monocytes,high,"Ly6c2,Ccr2,Serpinb10",
+10,Tumor_putative,Cycling epithelial-like,medium,"Mki67,Top2a,Stmn1",83% S+G2M; CNV pending
+11,Stromal,Endothelial cells,high,"Cldn5,Pecam1,Cdh5",
+12,Myeloid,MHC-II+ macrophages,high,"H2-Ab1,Cd68,Csf1r",APC-like
+13,Myeloid,Immunosuppressive macrophages,high,"Arg1,Ccl24,Mrc1",M2-like TAM
+14,Stromal,Fibroblasts,high,"Sfrp1,Col1a1,Pdgfra",confirmed CAF
+15,Lymphoid,NK cells,high,"Ncr1,Gzma,Nkg7",
+16,Unresolved,Unresolved mesenchymal,low,"Gm41333",QC normal; ribo% unusually low; provisional
+17,Myeloid,Metabolic Mono/Macro,medium,"Acaa1b,Cd68",71% G1; fatty acid metabolism
+18,Tumor_putative,Pvt1+ EMT cells,medium,"Pvt1,Areg,Rbp4",CNV pending
+19,Artifact,Erythrocytes,extreme,"Hbb-bt,Hba-a1",REMOVE
+20,Myeloid,Lipid-associated TAM,high,"Gpnmb,Cd68",
+21,Epithelial_normal,Club cells,high,"Scgb1a1",airway epithelium
+22,Myeloid,Macrophage subset,medium,"Cd68,Zdhhc14",small cluster
+23,Artifact,Platelets,extreme,"Tubb1,Pf4",REMOVE
+24,Lymphoid,Plasma cells,high,"Jchain,Xbp1,Sdc1",
+25,Epithelial_normal,AT2 cells,high,"Slc34a2,Sftpc",alveolar type II
+26,Epithelial_normal,Ciliated epithelial,high,"Tekt4",

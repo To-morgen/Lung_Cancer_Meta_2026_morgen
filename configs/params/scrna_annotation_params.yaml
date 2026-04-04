@@ -1,0 +1,152 @@
+# ============================================================================
+# scrna_annotation_params.yaml — Annotation-phase parameters
+#
+# 所有项目特定的基因列表、关注基因都在这里定义
+# pipeline 代码只读这个文件，不硬编码任何基因名
+# ============================================================================
+
+# ── 物种 (决定基因名大小写规则) ──
+species: "mouse"
+
+# ── FindAllMarkers 参数 ──
+find_markers:
+  only_pos: true
+  min_pct: 0.25
+  logfc_threshold: 0.25
+  test_use: "wilcox"
+  top_n: [3, 5, 10, 20]        # 导出 top N marker 表
+
+# ── Lineage markers (用于 DotPlot / FeaturePlot) ──
+# 按类别分组，pipeline 自动去重
+# 更换物种/组织时只需替换这个 block
+lineage_markers:
+  Epithelial:
+    - Epcam
+    - Krt19
+    - Krt8
+    - Krt18
+  T_cell:
+    - Cd3d
+    - Cd3e
+    - Cd4
+    - Cd8a
+    - Cd8b1
+  T_exhaustion:
+    - Pdcd1
+    - Lag3
+    - Havcr2
+    - Tigit
+    - Tox
+  Treg:
+    - Foxp3
+    - Il2ra
+    - Ctla4
+    - Ikzf2
+  NK:
+    - Nkg7
+    - Klrb1c
+    - Ncr1
+    - Gzma
+  Macrophage:
+    - Adgre1
+    - Cd68
+    - Csf1r
+    - Itgam
+  TAM_M1:
+    - Nos2
+    - Il1b
+    - Tnf
+    - Cd86
+  TAM_M2:
+    - Arg1
+    - Mrc1
+    - Chil3
+    - Retnla
+  Monocyte:
+    - Ly6c2
+    - Ccr2
+    - Cx3cr1
+  DC:
+    - Itgax
+    - H2-Ab1
+    - Flt3
+    - Xcr1
+    - Cd209a
+  Neutrophil:
+    - S100a8
+    - S100a9
+    - Ly6g
+    - Cxcr2
+  B_cell:
+    - Cd19
+    - Ms4a1
+    - Cd79a
+    - Cd79b
+  Plasma:
+    - Sdc1
+    - Xbp1
+    - Jchain
+  Fibroblast:
+    - Col1a1
+    - Col1a2
+    - Dcn
+    - Pdgfra
+  Endothelial:
+    - Pecam1
+    - Cdh5
+    - Vwf
+    - Kdr
+  Pericyte:
+    - Rgs5
+    - Acta2
+    - Pdgfrb
+  Cycling:
+    - Mki67
+    - Top2a
+    - Stmn1
+    - Birc5
+  Contamination:
+    - Hbb-bt
+    - Hba-a1
+    - Tubb1
+    - Pf4
+
+# ── FeaturePlot 的 key markers (子集，用于快速概览 UMAP) ──
+key_feature_markers:
+  - Epcam
+  - Cd3d
+  - Cd8a
+  - Cd4
+  - Foxp3
+  - Pdcd1
+  - Nkg7
+  - Adgre1
+  - Cd68
+  - Itgax
+  - S100a8
+  - Ly6c2
+  - Cd19
+  - Col1a1
+  - Pecam1
+  - Mki67
+
+# ── 项目特定关注基因 (POI = Project-specific genes Of Interest) ──
+# 这些基因会单独生成：
+#   - per-cluster violin
+#   - per-group violin
+#   - UMAP feature plot
+#   - per-cluster / per-group expression summary CSV
+project_genes:
+  - Gprin2
+
+# ── SingleR 参考数据集 ──
+singler:
+  references:
+    - name: "MouseRNAseqData"
+      package: "celldex"
+      label_col: "label.main"
+    - name: "ImmGenData"
+      package: "celldex"
+      label_col: "label.main"
+  run_per_cell: true          # 慢但信息量大；false = 只跑 per-cluster
+  de_method: "wilcox"

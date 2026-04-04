@@ -92,3 +92,31 @@ scrna_output_dirs <- function(phase = "02_qc") {
   lapply(dirs, function(d) dir.create(d, recursive = TRUE, showWarnings = FALSE))
   invisible(dirs)
 }
+
+# ---- Phase 4/5 output directory helpers ----
+
+scrna_integrate_dirs <- function() {
+  base <- here::here("results", "scrna", "04_integrate")
+  dirs <- list(
+    base    = base,
+    harmony = file.path(base, "harmony"),
+    plots   = file.path(base, "plots"),
+    reports = file.path(base, "reports")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  dirs
+}
+
+scrna_cluster_dirs <- function() {
+  base <- here::here("results", "scrna", "05_cluster")
+  dirs <- list(
+    base    = base,
+    objects = file.path(base, "objects"),
+    plots   = file.path(base, "plots"),
+    reports = file.path(base, "reports")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  dirs
+}
+
+cat("[init] io_scrna.R: 04_integrate + 05_cluster dirs registered\n")

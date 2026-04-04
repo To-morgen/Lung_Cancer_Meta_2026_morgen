@@ -1,0 +1,40 @@
+# DE analysis contrasts
+# Each contrast: name, group1, group2, subset (optional celltype filter)
+
+contrasts:
+  # Global comparisons (all cells)
+  - name: "FL_vs_mc"
+    group1: "FL"
+    group2: "mc"
+    subset: null
+
+  - name: "A1_vs_mc"
+    group1: "A1"
+    group2: "mc"
+    subset: null
+
+  - name: "FL_vs_A1"
+    group1: "FL"
+    group2: "A1"
+    subset: null
+
+  # Per-celltype comparisons
+  - name: "FL_vs_mc_Tumor"
+    group1: "FL"
+    group2: "mc"
+    subset: "Tumor"
+
+  - name: "FL_vs_A1_Tumor"
+    group1: "FL"
+    group2: "A1"
+    subset: "Tumor"
+
+  - name: "FL_vs_mc_TAM"
+    group1: "FL"
+    group2: "mc"
+    subset: "Myeloid"
+
+  - name: "FL_vs_A1_TAM"
+    group1: "FL"
+    group2: "A1"
+    subset: "Myeloid"
