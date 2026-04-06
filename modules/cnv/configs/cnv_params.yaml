@@ -8,6 +8,7 @@ species: "mouse"
 input:
   # seurat_object: "results/scrna/06_annotate/objects/seurat_singler_annotated.rds"
   seurat_object: "results/scrna/06_annotate/objects/seurat_annotated.rds"
+  cluster_column: "seurat_clusters"
 
 
 # ── SCEVAN ──
