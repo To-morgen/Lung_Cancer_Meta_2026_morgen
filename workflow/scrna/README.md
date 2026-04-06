@@ -1,57 +1,124 @@
-# scRNA-seq Analysis Workflow
+# scRNA-seq Workflow
 
-## Complete Pipeline
+This directory stores the **project-standard scRNA-seq workflow** for the Lung Cancer Multi-omics Atlas 2026 project.
 
-阶段一: 单样本清洗 (per-sample)
-────────────────────────────────────────
-01_alignment/ Cell Ranger count ✅ Done
-02_qc/ SoupX → Seurat → MAD QC 🔴 Current
-→ scDblFinder → clean
+**It is designed for:**
+* reproducible staged processing
+* stable promotion from raw sample objects to annotated analysis objects
+* clean handoff into downstream modules such as CNV, CellChat, and DE analysis
 
-阶段二: 汇集与特征提取
-────────────────────────────────────────
-03_normalize/ merge → SCTransform ⬜ Next
-→ Cell Cycle Scoring
-→ PCA
+---
 
-阶段三: 去批次与聚类
-────────────────────────────────────────
-04_integrate/ Harmony ⬜ Planned
-05_cluster/ FindNeighbors/FindClusters ⬜ Planned
-→ UMAP
+## Workflow Stages
 
-阶段四: 生物学注释
-────────────────────────────────────────
-06_annotate/ SingleR (auto) ⬜ Planned
-→ FindAllMarkers
-→ Manual annotation
+### Stage 01 — Alignment (`01_alignment/`)
+* Cell Ranger count
+* alignment QC summaries
+* small subset checks when needed
 
-06_downstream/ DE / Pathway / CellChat ⬜ Future
+### Stage 02 — Per-sample QC (`02_qc/`)
+* SoupX ambient correction
+* Seurat object creation
+* MAD-based QC
+* doublet detection/removal
+* QC visualization
 
+### Stage 03 — Normalization & Feature Extraction (`03_normalize/`)
+* sample merge
+* cell cycle scoring
+* SCTransform
+* PCA
+* cell cycle effect assessment
 
-## Key Design Decisions
+### Stage 04 — Integration (`04_integrate/`)
+* Harmony integration
+* integrated dimensional reduction outputs
 
-1. **Doublet removal BEFORE merge** — physical artifact, must be per-sample
-2. **MAD-based QC** — data-driven, n_mad=3, log space for count metrics
-3. **SCTransform** over LogNormalize — better variance stabilization
-4. **Cell Cycle**: Score always, regress only if needed (CC.Difference strategy for tumor study)
-5. **Harmony** for batch correction — fast, effective, works in PCA space
-6. **Leiden** clustering (algorithm 4) with multiple resolutions
+### Stage 05 — Clustering (`05_cluster/`)
+* neighbor graph
+* clustering
+* UMAP
+* cluster QC and resolution review
 
-## Cell Cycle Strategy (for this tumor project)
+### Stage 06 — Annotation (`06_annotate/`)
+* marker identification
+* SingleR auto-annotation
+* manual annotation
+* annotated Seurat object generation
 
-Always score S.Score + G2M.Score (CellCycleScoring)
-Run SCTransform WITHOUT regression first
-Check PCA/UMAP:
-If G2M/S dominate PC1/PC2 → regress CC.Difference
-If minimal effect → keep as-is
-For LLC lung cancer: proliferation is key biology
-→ Prefer CC.Difference (preserves cycling vs quiescent)
-→ Never blindly remove S.Score + G2M.Score
+### Stage 07 — Figures / Downstream Preparation (`07_figures/`)
+* Figure-oriented and reporting-oriented outputs for stable presentation.
+
+### Stage 10 — CNV Handoff
+Project-level CNV outputs are promoted to:
+```text
+results/scrna/10_cnv/
+├── infercnv/
+├── scevan/
+├── consensus/
+├── plots/
+└── reports/
+```
+
+---
+
+## Actual Current State
+
+> **Status:** This repository is no longer at the QC-only stage.
+
+The tree already indicates that integration scripts, clustering scripts, annotation scripts and outputs, and project-level CNV landing directories **already exist**. This workflow should be read as an **active staged pipeline**, not a future scaffold.
+
+---
+
+## Key Biological / Analytical Decisions
+
+| Strategy / Decision | Biological & Analytical Rationale |
+| :--- | :--- |
+| **Doublet removal before merge** | Doublets are physical artifacts and should be handled per sample whenever possible. |
+| **MAD-based QC** | Thresholding should be data-driven rather than fixed by habit alone. |
+| **SCTransform over naive log-norm** | Preferred for more stable variance handling in this project. |
+| **Score, do not blindly regress, Cell Cycle** | In tumor projects, proliferation is often biology, not nuisance. |
+| **Harmony for integration** | Used as a practical PCA-space batch correction strategy. |
+| **Multiple clustering resolutions review** | Final annotation should not rest on a single arbitrary clustering parameter. |
+
+---
+
+## Canonical Object Progression
+
+A typical object path follows a strict linear promotion:
+
+`per-sample raw object` -> `QC-clean object` -> `merged object` -> `normalized object` -> `integrated object` -> `clustered object` -> **`annotated object (Canonical Mother Object)`** -> `downstream module input`
+
+---
+
+## Handoff to Modules
+
+### Principle
+* `workflow/` owns the standard pipeline.
+* `modules/` own specialized downstream analysis.
+*(Examples: CNV -> `modules/cnv/`, CellChat -> `modules/cellchat/`)*
+
+### CNV Example
+* **Module-native artifacts** remain in: `modules/cnv/results/...`
+* **Promoted project outputs** go to: `results/scrna/10_cnv/...`
+
+---
 
 ## Function Layers
 
-Layer 1: scripts/utils/ Project-wide
-Layer 2: workflow/scrna/functions/ scRNA-specific
-Layer 3: workflow/scrna/02_qc/*.R Step scripts
+| Layer | Path | Purpose |
+| :---: | :--- | :--- |
+| **1** | `scripts/` | Project-wide general utilities |
+| **2** | `workflow/scrna/functions/` | scRNA-specific helper functions |
+| **3** | `workflow/scrna/<stage>/` | Stage scripts and pipeline entrypoints |
+
+---
+
+## Recommended Practice
+
+- [x] keep **stable logic** in stage scripts
+- [x] keep **exploratory code** in `scratch/`
+- [x] save **machine-readable outputs** at each major stage
+- [x] **log** major runs
+- [x] promote **only stable outputs** into project-level result directories
 
