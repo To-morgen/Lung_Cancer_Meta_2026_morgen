@@ -1,5 +1,11 @@
 #!/usr/bin/env Rscript
+# ============================================================================
+# 05_validate_results_com_membership.R
 # DEBUG/INSPECTION ONLY — not called by pipeline
+#
+# Validates: results.com membership from Subclones .RData
+#   → Which clusters are tumor? What's the ref contamination?
+# ============================================================================
 
 suppressPackageStartupMessages({
   library(here)
@@ -8,11 +14,7 @@ suppressPackageStartupMessages({
   library(yaml)
 })
 
-# ------------------------------------------------------------------
-# Paths derived from project config (no hardcoded relative paths)
-# ------------------------------------------------------------------
-
-module_root <- here::here()   # modules/cnv/
+module_root <- here::here()
 proj_root   <- Sys.getenv("LUNGMETA_ROOT")
 if (proj_root == "") proj_root <- normalizePath(file.path(module_root, "..", ".."))
 
@@ -23,86 +25,122 @@ rdata_path         <- file.path(module_root, cfg$output$module_results,
                                 "scevan", "output",
                                 "LLC_tumor_CNAmtxSubclones.RData")
 reference_clusters <- as.character(cfg$scevan$reference_clusters)
-cluster_col        <- if (!is.null(cfg$input$cluster_column))
-                        cfg$input$cluster_column else "seurat_clusters"
+cluster_col        <- if (!is.null(cfg$input$cluster_column)) {
+                        cfg$input$cluster_column
+                      } else {
+                        "seurat_clusters"
+                      }
 
-# ------------------------------------------------------------------
-# Load Seurat
-# ------------------------------------------------------------------
+cat("\n╔══════════════════════════════════════════════════╗\n")
+cat("║  05: Validate results.com membership             ║\n")
+cat("╚══════════════════════════════════════════════════╝\n\n")
 
+# ── Load ──
+if (!file.exists(rdata_path)) stop("Subclones .RData not found: ", rdata_path)
+if (!file.exists(seurat_path)) stop("Seurat object not found: ", seurat_path)
+
+cat(sprintf("Loading .RData:  %s\n", basename(rdata_path)))
+env <- new.env()
+load(rdata_path, envir = env)
+cat(sprintf("Objects loaded: %s\n", paste(ls(env), collapse = ", ")))
+
+cat(sprintf("Loading Seurat:  %s\n", basename(seurat_path)))
 sobj <- readRDS(seurat_path)
+cell_barcodes <- colnames(sobj)
+cat(sprintf("Seurat cells:    %d\n", length(cell_barcodes)))
 
-if (!cluster_col %in% colnames(sobj@meta.data)) {
-  stop("Cluster column not found in Seurat metadata: ", cluster_col)
+# ── Extract results.com ──
+if (!"results.com" %in% ls(env)) {
+  stop("results.com not found in .RData!")
 }
 
-all_barcodes <- colnames(sobj)
-cluster_vec <- as.character(sobj[[cluster_col]][, 1])
+results_com <- env$results.com
+cat(sprintf("\nresults.com: %d rows, columns: %s\n",
+            nrow(results_com), paste(colnames(results_com), collapse = ", ")))
 
-# ------------------------------------------------------------------
-# Load RData and extract tumor-candidate barcodes
-# ------------------------------------------------------------------
-
-e <- new.env(parent = emptyenv())
-nm <- load(rdata_path, envir = e)
-
-if (!"results.com" %in% nm) {
-  stop("results.com not found in: ", rdata_path, "\nObjects: ", paste(nm, collapse = ", "))
+# results.com barcodes
+if (!is.null(rownames(results_com))) {
+  rc_barcodes <- rownames(results_com)
+} else {
+  rc_barcodes <- results_com[[1]]
 }
+cat(sprintf("results.com barcodes: %d\n", length(rc_barcodes)))
 
-obj <- e[["results.com"]]
+# ── Match to Seurat metadata ──
+matched <- rc_barcodes[rc_barcodes %in% cell_barcodes]
+unmatched <- rc_barcodes[!rc_barcodes %in% cell_barcodes]
+cat(sprintf("Matched to Seurat: %d / %d (unmatched: %d)\n",
+            length(matched), length(rc_barcodes), length(unmatched)))
 
-if (is.null(colnames(obj))) {
-  stop("results.com has no colnames; cannot map barcodes.")
-}
+# ── Cluster distribution ──
+clusters <- as.character(sobj@meta.data[matched, cluster_col])
+cluster_tab <- as.data.table(table(cluster = clusters))
+setnames(cluster_tab, "N", "n_in_results_com")
 
-tumor_candidate_barcodes <- colnames(obj)
-tumor_candidate_barcodes <- unique(tumor_candidate_barcodes[tumor_candidate_barcodes %in% all_barcodes])
+# Total cells per cluster
+all_clusters <- as.character(sobj@meta.data[[cluster_col]])
+total_tab <- as.data.table(table(cluster = all_clusters))
+setnames(total_tab, "N", "n_total")
 
-cat("Total Seurat cells: ", length(all_barcodes), "\n", sep = "")
-cat("Tumor-candidate cells from results.com: ", length(tumor_candidate_barcodes), "\n", sep = "")
+cluster_summary <- merge(total_tab, cluster_tab, by = "cluster", all.x = TRUE)
+cluster_summary[is.na(n_in_results_com), n_in_results_com := 0]
+cluster_summary[, pct_tumor := round(n_in_results_com / n_total * 100, 2)]
+cluster_summary[, is_reference := cluster %in% reference_clusters]
+setorder(cluster_summary, -pct_tumor)
 
-# ------------------------------------------------------------------
-# Build validation table
-# ------------------------------------------------------------------
+cat("\n=== Cluster Membership ===\n")
+print(cluster_summary)
 
-dt <- data.table(
-  barcode = all_barcodes,
-  cluster = cluster_vec
+# ── Reference contamination ──
+ref_in_tumor <- cluster_summary[is_reference == TRUE & n_in_results_com > 0]
+total_ref <- cluster_summary[is_reference == TRUE, sum(n_total)]
+total_ref_tumor <- cluster_summary[is_reference == TRUE, sum(n_in_results_com)]
+ref_contam_pct <- round(total_ref_tumor / total_ref * 100, 2)
+
+reference_summary <- data.table(
+  metric = c("total_reference_cells", "reference_in_results_com", "ref_contamination_pct"),
+  value = c(total_ref, total_ref_tumor, ref_contam_pct)
 )
 
-dt[, in_results_com := barcode %in% tumor_candidate_barcodes]
-dt[, is_reference_cluster := cluster %in% reference_clusters]
+cat("\n=== Reference Contamination ===\n")
+print(reference_summary)
+if (ref_contam_pct > 5) {
+  cat("⚠️  WARNING: Reference contamination > 5%!\n")
+} else {
+  cat(sprintf("✅ Reference contamination = %.2f%% (acceptable)\n", ref_contam_pct))
+}
 
-# ------------------------------------------------------------------
-# Summaries
-# ------------------------------------------------------------------
+# ── Subclone cross-tab (if available) ──
+cross_tab <- data.table()
+subcl_cols <- grep("subclone|class", colnames(results_com), ignore.case = TRUE, value = TRUE)
+if (length(subcl_cols) > 0) {
+  cat(sprintf("\nSubclone columns found: %s\n", paste(subcl_cols, collapse = ", ")))
+  for (sc in subcl_cols) {
+    tab <- as.data.table(table(value = results_com[[sc]]))
+    tab$column <- sc
+    cross_tab <- rbind(cross_tab, tab)
+  }
+  cat("\n=== Subclone Distribution ===\n")
+  print(cross_tab)
+} else {
+  cat("\nNo subclone columns found in results.com\n")
+  # Try class column on results.com
+  if ("class" %in% colnames(results_com)) {
+    cross_tab <- as.data.table(table(class = results_com$class))
+    cat("\n=== Class Distribution ===\n")
+    print(cross_tab)
+  }
+}
 
-cluster_summary <- dt[, .(
-  n_total = .N,
-  n_in_results_com = sum(in_results_com),
-  pct_in_results_com = round(100 * sum(in_results_com) / .N, 1)
-), by = cluster][order(suppressWarnings(as.integer(cluster)), cluster)]
-
-reference_summary <- dt[, .(
-  n_total = .N,
-  n_in_results_com = sum(in_results_com),
-  pct_in_results_com = round(100 * sum(in_results_com) / .N, 1)
-), by = is_reference_cluster]
-
-cross_tab <- dt[, .N, by = .(cluster, in_results_com)]
-
+# ── Save ──
 out_dir <- file.path(proj_root, cfg$output$main_results, "reports")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 fwrite(cluster_summary,   file.path(out_dir, "results_com_membership_by_cluster.csv"))
 fwrite(reference_summary, file.path(out_dir, "results_com_membership_reference_check.csv"))
-fwrite(cross_tab,         file.path(out_dir, "results_com_membership_crosstab.csv"))
+if (nrow(cross_tab) > 0) {
+  fwrite(cross_tab, file.path(out_dir, "results_com_membership_crosstab.csv"))
+}
 
-cat("\nCluster summary:\n")
-print(cluster_summary)
-
-cat("\nReference contamination check:\n")
-print(reference_summary)
-
-cat(sprintf("\nSaved to: %s\n", out_dir))
+cat(sprintf("\nOutputs → %s\n", out_dir))
+cat("\n========== Validation complete ==========\n")

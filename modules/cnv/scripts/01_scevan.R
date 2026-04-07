@@ -176,9 +176,10 @@ setwd(local_out)  # ONLY acceptable setwd: for SCEVAN's internal file output
 scevan_ok <- FALSE
 results   <- NULL
 
+scevan_ok <- FALSE
+
 tryCatch({
   if (is.null(ref_barcodes)) {
-    # Auto mode
     results <- SCEVAN::pipelineCNA(
       count_mtx  = counts,
       sample     = "LLC_tumor",
@@ -187,7 +188,6 @@ tryCatch({
       SUBCLONES  = isTRUE(cfg$scevan$subclones)
     )
   } else {
-    # Manual reference mode
     results <- SCEVAN::pipelineCNA(
       count_mtx  = counts,
       sample     = "LLC_tumor",
@@ -199,43 +199,59 @@ tryCatch({
   }
   scevan_ok <- TRUE
 }, error = function(e) {
-  cat(sprintf("\n⚠️  SCEVAN error: %s\n", conditionMessage(e)))
-  # Write crash marker so recovery can record provenance
-  writeLines(
-    c(paste0("timestamp: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S")),
-      paste0("error: ",     conditionMessage(e)),
-      paste0("wd_at_crash: ", getwd())),
-    file.path(getwd(), "scevan_crash_log.txt")
-  )
+  setwd(old_wd)
+  
+  crash_msg <- sprintf("SCEVAN pipelineCNA error: %s", e$message)
+  cat(sprintf("\n❌ %s\n", crash_msg))
+  writeLines(crash_msg, file.path(local_out, "scevan_crash.log"))
+  
+  # Check for partial success: do .RData artifacts exist?
+  rdata_files <- list.files(file.path(local_out, "output"),
+                            pattern = "\\.RData$", full.names = TRUE)
+  
+  if (length(rdata_files) > 0) {
+    cat(sprintf("\n📦 PARTIAL SUCCESS: %d .RData file(s) found\n", length(rdata_files)))
+    for (f in rdata_files) cat(sprintf("   %s  (%.1f MB)\n", basename(f), file.size(f)/1e6))
+    
+    # Invoke recovery script
+    recovery_script <- file.path(module_root, "scripts", "03_recover_scevan_artifacts.R")
+    if (file.exists(recovery_script)) {
+      cat("\n🔧 Launching 03_recover_scevan_artifacts.R ...\n\n")
+      
+      # Ensure LUNGMETA_ROOT is set for child process
+      if (Sys.getenv("LUNGMETA_ROOT") == "") {
+        Sys.setenv(LUNGMETA_ROOT = proj_root)
+      }
+      
+      ret <- system2(
+        command = file.path(R.home("bin"), "Rscript"),
+        args = shQuote(recovery_script),
+        stdout = "", stderr = ""
+      )
+      
+      if (ret == 0) {
+        cat("\n✅ Recovery completed successfully\n")
+        quit(save = "no", status = 0L)
+      } else {
+        cat(sprintf("\n❌ Recovery script exited with status %d\n", ret))
+        quit(save = "no", status = 1L)
+      }
+    } else {
+      cat(sprintf("\n⚠️  Recovery script not found: %s\n", recovery_script))
+      cat("   Run 03_recover_scevan_artifacts.R manually\n")
+      quit(save = "no", status = 1L)
+    }
+  } else {
+    # Hard failure — no artifacts at all
+    cat("\n💀 HARD FAILURE: No .RData artifacts found\n")
+    cat("   SCEVAN must be re-run from scratch\n")
+    quit(save = "no", status = 1L)
+  }
 })
 
 setwd(old_wd)
+
 elapsed <- round(difftime(Sys.time(), t0, units = "mins"), 1)
-
-# ── Partial-success guard & auto-recovery ─────────────────────────────────────
-if (!scevan_ok) {
-  n_rdata <- length(list.files(local_out, pattern = "\\.RData$", recursive = TRUE))
-  n_seg   <- length(list.files(local_out, pattern = "\\.seg$",   recursive = TRUE))
-  cat(sprintf("\n  Artifacts on disk: %d .RData, %d .seg\n", n_rdata, n_seg))
-
-  if (n_rdata >= 1L) {
-    cat("  Status: PARTIAL SUCCESS → invoking 03_recover_scevan_artifacts.R\n\n")
-    recovery_script <- file.path(module_root, "scripts", "03_recover_scevan_artifacts.R")
-    rscript_bin     <- file.path(R.home("bin"), "Rscript")
-    extra_env       <- if (Sys.getenv("LUNGMETA_ROOT") == "")
-                         sprintf("LUNGMETA_ROOT=%s", proj_root) else character(0)
-    rc <- system2(rscript_bin, args = shQuote(recovery_script), env = extra_env)
-    if (rc != 0L)
-      warning(sprintf("Recovery script exited with code %d — inspect log manually.", rc))
-    cat(sprintf("\n  Promoted outputs → %s\n", main_out))
-    quit(save = "no", status = 0L)
-  } else {
-    stop(sprintf(
-      "SCEVAN hard failure: no .RData artifacts in %s\n  Recheck input and rerun.",
-      local_out))
-  }
-}
-
 cat(sprintf("\n✅ SCEVAN completed in %.1f min\n", elapsed))
 
 # ============================================================================

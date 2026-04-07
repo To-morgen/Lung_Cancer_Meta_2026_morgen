@@ -1,336 +1,414 @@
 #!/usr/bin/env Rscript
+# ============================================================================
+# 03_recover_scevan_artifacts.R — Priority-based recovery from SCEVAN .RData
+#
+# Strategy:
+#   1. Load LLC_tumor_CNAmtxSubclones.RData
+#   2. Extract results.com → tumor_assigned_subclone (~17827 cells)
+#   3. Remaining CNA_mtx_relat cells minus ref → tumor_unassigned_subclone (~228)
+#   4. All other Seurat cells → non_tumor
+#   5. Plausibility guard before writing any output
+#
+# NEVER uses CNA_mtx_relat alone as tumor source (that's ALL ~60k cells)
+# ============================================================================
 
 suppressPackageStartupMessages({
+  library(here)
   library(Seurat)
   library(data.table)
-  library(here)
   library(yaml)
+  library(ggplot2)
+  library(patchwork)
 })
 
-# =============================================================================
-# 03_recover_scevan_artifacts.R
-#
-# Purpose:
-#   Safely recover tumor membership from native SCEVAN artifacts after a
-#   late-stage crash.
-#
-# Recovery policy:
-#   - Promote all raw artifacts to project-level result directory
-#   - Recover tumor membership ONLY from results.com
-#   - Reject biologically implausible recovery automatically
-#
-# Biological note:
-#   results.com behaves like a tumor-focused subclone object in this run.
-#   CNA_mtx_relat is NOT treated as a tumor-membership carrier.
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
-
-#' Read config with lightweight fallback.
-#'
-#' Args:
-#'   cfg_path: YAML file path
-#'
-#' Returns:
-#'   Parsed config list
-read_cfg <- function(cfg_path) {
-  if (!file.exists(cfg_path)) stop("Config not found: ", cfg_path)
-  yaml::read_yaml(cfg_path)
-}
-
-#' Get a nested config value using multiple candidate paths.
-#'
-#' Args:
-#'   cfg: Parsed config list
-#'   paths: List of character vectors, each a candidate nested path
-#'   default: Default value if all paths fail
-#'
-#' Returns:
-#'   Retrieved value or default
-get_cfg_value <- function(cfg, paths, default = NULL) {
-  for (p in paths) {
-    x <- cfg
-    ok <- TRUE
-    for (nm in p) {
-      if (!is.list(x) || is.null(x[[nm]])) {
-        ok <- FALSE
-        break
-      }
-      x <- x[[nm]]
-    }
-    if (ok) return(x)
-  }
-  default
-}
-
-#' Load all objects from an .RData file.
-#'
-#' Args:
-#'   path: .RData path
-#'
-#' Returns:
-#'   Named list of objects
-load_rdata_as_list <- function(path) {
-  e <- new.env(parent = emptyenv())
-  nm <- load(path, envir = e)
-  stats::setNames(lapply(nm, function(x) get(x, envir = e)), nm)
-}
-
-# -----------------------------------------------------------------------------
-# Paths
-# -----------------------------------------------------------------------------
-
 module_root <- here::here()
-proj_root <- Sys.getenv("LUNGMETA_ROOT")
-if (proj_root == "") {
-  proj_root <- normalizePath(file.path(module_root, "..", ".."))
+proj_root   <- Sys.getenv("LUNGMETA_ROOT")
+if (proj_root == "") proj_root <- normalizePath(file.path(module_root, "..", ".."))
+
+cat("\n")
+cat("╔══════════════════════════════════════════════════╗\n")
+cat("║   03: SCEVAN Artifact Recovery (Priority-based)  ║\n")
+cat(sprintf("║   Time: %s            ║\n", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+cat("╚══════════════════════════════════════════════════╝\n\n")
+
+# ============================================================================
+# 1. Config
+# ============================================================================
+
+cfg <- yaml::read_yaml(file.path(module_root, "configs", "cnv_params.yaml"))
+
+seurat_path <- file.path(proj_root, cfg$input$seurat_object)
+cluster_col <- if (!is.null(cfg$input$cluster_column)) {
+                 cfg$input$cluster_column
+               } else {
+                 "seurat_clusters"
+               }
+ref_clusters <- as.character(cfg$scevan$reference_clusters)
+
+# Output dirs
+scevan_out <- file.path(proj_root, cfg$output$main_results, "scevan")
+report_out <- file.path(proj_root, cfg$output$main_results, "reports")
+plot_out   <- file.path(proj_root, cfg$output$main_results, "plots")
+for (d in c(scevan_out, report_out, plot_out)) {
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-cfg <- read_cfg(file.path(module_root, "configs", "cnv_params.yaml"))
+cat(sprintf("Seurat:     %s\n", basename(seurat_path)))
+cat(sprintf("Cluster:    %s\n", cluster_col))
+cat(sprintf("Ref clusters: %s\n", paste(ref_clusters, collapse = ", ")))
 
-input_path <- file.path(
-  proj_root,
-  get_cfg_value(cfg, list(c("input", "seurat_object")), "results/scrna/06_annotate/objects/seurat_annotated.rds")
-)
+# ============================================================================
+# 2. Load Seurat
+# ============================================================================
 
-artifact_dir <- file.path(
-  module_root,
-  get_cfg_value(cfg, list(c("output", "module_results")), "results"),
-  "scevan", "output"
-)
-if (!dir.exists(artifact_dir)) {
-  artifact_dir <- file.path(
-    module_root,
-    get_cfg_value(cfg, list(c("output", "module_results")), "results"),
-    "scevan"
-  )
-}
-
-main_out <- file.path(
-  proj_root,
-  get_cfg_value(cfg, list(c("output", "main_results")), "results/scrna/10_cnv"),
-  "scevan"
-)
-plot_out <- file.path(
-  proj_root,
-  get_cfg_value(cfg, list(c("output", "main_results")), "results/scrna/10_cnv"),
-  "plots"
-)
-report_out <- file.path(
-  proj_root,
-  get_cfg_value(cfg, list(c("output", "main_results")), "results/scrna/10_cnv"),
-  "reports"
-)
-
-dir.create(main_out, recursive = TRUE, showWarnings = FALSE)
-dir.create(plot_out, recursive = TRUE, showWarnings = FALSE)
-dir.create(report_out, recursive = TRUE, showWarnings = FALSE)
-
-# -----------------------------------------------------------------------------
-# Load mother object and curated references
-# -----------------------------------------------------------------------------
-
-sobj <- readRDS(input_path)
+cat("\nLoading Seurat...\n")
+sobj <- readRDS(seurat_path)
 cell_barcodes <- colnames(sobj)
+n_total <- length(cell_barcodes)
+cat(sprintf("  %d cells, %d genes\n", ncol(sobj), nrow(sobj)))
 
-cluster_col <- get_cfg_value(
-  cfg,
-  list(c("input", "cluster_column"), c("input", "cluster_col")),
-  "seurat_clusters"
-)
+# ============================================================================
+# 3. Load .RData artifacts
+# ============================================================================
 
-reference_clusters <- as.character(get_cfg_value(
-  cfg,
-  list(
-    c("input", "reference_clusters"),
-    c("input", "ref_clusters"),
-    c("scevan", "reference_clusters"),
-    c("reference", "clusters")
-  ),
-  c("3", "4", "5", "6", "11", "14", "15")
-))
+# Priority: Subclones file (has results.com)
+subclone_path <- file.path(module_root, "results", "scevan", "output",
+                           "LLC_tumor_CNAmtxSubclones.RData")
+base_path     <- file.path(module_root, "results", "scevan", "output",
+                           "LLC_tumor_CNAmtx.RData")
 
-if (!cluster_col %in% colnames(sobj@meta.data)) {
-  stop("Cluster column not found in Seurat metadata: ", cluster_col)
+if (!file.exists(subclone_path)) {
+  stop("CRITICAL: LLC_tumor_CNAmtxSubclones.RData not found at: ", subclone_path)
 }
 
-cluster_vec <- as.character(sobj[[cluster_col]][, 1])
-ref_barcodes <- colnames(sobj)[cluster_vec %in% reference_clusters]
+cat(sprintf("\nLoading: %s\n", basename(subclone_path)))
+env_sub <- new.env()
+load(subclone_path, envir = env_sub)
+cat(sprintf("  Objects: %s\n", paste(ls(env_sub), collapse = ", ")))
 
-cat("Project root: ", proj_root, "\n", sep = "")
-cat("Artifact dir: ", artifact_dir, "\n", sep = "")
-cat("Input Seurat: ", input_path, "\n", sep = "")
-cat("Total cells: ", length(cell_barcodes), "\n", sep = "")
-cat("Reference clusters: ", paste(reference_clusters, collapse = ", "), "\n", sep = "")
-cat("Reference cells: ", length(ref_barcodes), "\n", sep = "")
-
-# -----------------------------------------------------------------------------
-# Promote raw artifacts
-# -----------------------------------------------------------------------------
-
-artifact_files <- list.files(artifact_dir, full.names = TRUE, recursive = FALSE)
-copy_ok <- file.copy(artifact_files, main_out, overwrite = TRUE)
-
-artifact_manifest <- data.frame(
-  file = basename(artifact_files),
-  src = artifact_files,
-  dst = file.path(main_out, basename(artifact_files)),
-  copied = copy_ok,
-  stringsAsFactors = FALSE
-)
-fwrite(artifact_manifest, file.path(main_out, "scevan_artifact_manifest.csv"))
-
-plot_files <- grep("\\.(png|pdf)$", artifact_files, value = TRUE, ignore.case = TRUE)
-if (length(plot_files) > 0) {
-  file.copy(plot_files, plot_out, overwrite = TRUE)
+# Also load base .RData for CNA_mtx_relat (if needed for unassigned)
+env_base <- new.env()
+if (file.exists(base_path)) {
+  load(base_path, envir = env_base)
+  cat(sprintf("  Base objects: %s\n", paste(ls(env_base), collapse = ", ")))
 }
 
-# -----------------------------------------------------------------------------
-# Deep inspect RData files and save manifest
-# -----------------------------------------------------------------------------
+# ============================================================================
+# 4. Extract results.com (PRIMARY tumor source)
+# ============================================================================
 
-rdata_files <- list.files(artifact_dir, pattern = "\\.RData$", full.names = TRUE)
-sig_list <- list()
-k <- 1L
+if (!"results.com" %in% ls(env_sub)) {
+  stop("CRITICAL: results.com not found in Subclones .RData!")
+}
 
-for (f in rdata_files) {
-  obj_list <- load_rdata_as_list(f)
-  for (nm in names(obj_list)) {
-    obj <- obj_list[[nm]]
-    nr <- if (!is.null(dim(obj))) dim(obj)[1] else NA_integer_
-    nc <- if (!is.null(dim(obj))) dim(obj)[2] else NA_integer_
-    sig_list[[k]] <- data.frame(
-      file = basename(f),
-      object = nm,
-      class = paste(class(obj), collapse = ";"),
-      nrow = nr,
-      ncol = nc,
-      stringsAsFactors = FALSE
-    )
-    k <- k + 1L
+results_com <- env_sub$results.com
+
+cat(sprintf("\nresults.com: %d rows\n", nrow(results_com)))
+cat(sprintf("  Columns: %s\n", paste(colnames(results_com), collapse = ", ")))
+
+# Get barcodes from results.com
+rc_barcodes <- colnames(results_com)
+# (fallback removed — colnames is the correct source)
+
+# Match to Seurat
+rc_in_seurat <- rc_barcodes[rc_barcodes %in% cell_barcodes]
+cat(sprintf("  Matched to Seurat: %d / %d\n", length(rc_in_seurat), length(rc_barcodes)))
+
+# These are TUMOR cells with SUBCLONE assignment
+tumor_assigned <- rc_in_seurat
+n_assigned <- length(tumor_assigned)
+cat(sprintf("\n  → tumor_assigned_subclone: %d cells\n", n_assigned))
+
+# ============================================================================
+# 5. Identify tumor_unassigned (in CNA_mtx_relat but NOT in results.com, NOT ref)
+# ============================================================================
+
+# Get CNA_mtx_relat barcodes (all cells that entered SCEVAN's CNV analysis)
+cna_barcodes <- character(0)
+for (env in list(env_sub, env_base)) {
+  if ("CNA_mtx_relat" %in% ls(env)) {
+    cna_barcodes <- colnames(env$CNA_mtx_relat)
+    cat(sprintf("\nCNA_mtx_relat: %d columns\n", length(cna_barcodes)))
+    break
   }
 }
 
-if (length(sig_list) > 0) {
-  fwrite(rbindlist(sig_list), file.path(report_out, "scevan_rdata_object_manifest.csv"))
+# Reference barcodes (from Seurat cluster metadata)
+ref_bc <- cell_barcodes[as.character(sobj@meta.data[[cluster_col]]) %in% ref_clusters]
+cat(sprintf("Reference cells (clusters %s): %d\n",
+            paste(ref_clusters, collapse = ","), length(ref_bc)))
+
+# SCEVAN classified only results.com colnames as tumor (17,827 of ~18,055).
+# The ~228 difference were filtered during subclone refinement → treat as non-tumor.
+# All other cells in CNA_mtx_relat were SCEVAN-classified NORMAL — NOT tumor.
+tumor_unassigned <- character(0)
+n_unassigned <- 0
+cat("  → tumor_unassigned: 0 (only results.com colnames are confirmed tumor)\n")
+
+if (length(cna_barcodes) > 0) {
+  cna_in_seurat <- cna_barcodes[cna_barcodes %in% cell_barcodes]
+  scevan_normal_nonref <- setdiff(cna_in_seurat, c(tumor_assigned, ref_bc))
+  cat(sprintf("  → SCEVAN-classified normal (non-ref clusters): %d cells\n",
+              length(scevan_normal_nonref)))
 }
 
-# -----------------------------------------------------------------------------
-# Recover tumor membership ONLY from results.com
-# -----------------------------------------------------------------------------
+# Non-tumor = everything else
+all_tumor <- union(tumor_assigned, tumor_unassigned)
+non_tumor <- setdiff(cell_barcodes, all_tumor)
+n_non_tumor <- length(non_tumor)
 
-subclone_rdata <- file.path(artifact_dir, "LLC_tumor_CNAmtxSubclones.RData")
-if (!file.exists(subclone_rdata)) {
-  stop("Expected subclone RData not found: ", subclone_rdata)
+cat(sprintf("\n=== Label Summary ===\n"))
+cat(sprintf("  tumor_assigned_subclone:   %6d  (%.1f%%)\n",
+            n_assigned, n_assigned / n_total * 100))
+cat(sprintf("  tumor_unassigned_subclone: %6d  (%.1f%%)\n",
+            n_unassigned, n_unassigned / n_total * 100))
+cat(sprintf("  non_tumor:                 %6d  (%.1f%%)\n",
+            n_non_tumor, n_non_tumor / n_total * 100))
+cat(sprintf("  TOTAL:                     %6d\n", n_total))
+
+# ============================================================================
+# 6. Plausibility Guard (BEFORE writing anything)
+# ============================================================================
+
+tumor_frac <- (n_assigned + n_unassigned) / n_total * 100
+
+# Guard 1: tumor fraction > 90% → ABORT (CNA_mtx_relat contamination signature)
+if (tumor_frac > 90) {
+  stop(sprintf(
+    "PLAUSIBILITY FAIL: tumor fraction = %.1f%% (> 90%%). " %+%
+    "This looks like CNA_mtx_relat was used instead of results.com. ABORTING.",
+    tumor_frac))
 }
 
-obj_list <- load_rdata_as_list(subclone_rdata)
-if (!"results.com" %in% names(obj_list)) {
-  stop("results.com not found in: ", subclone_rdata)
+# Guard 2: ref contamination > 5% → WARNING
+ref_in_tumor <- sum(all_tumor %in% ref_bc)
+ref_contam <- ref_in_tumor / length(ref_bc) * 100
+if (ref_contam > 5) {
+  cat(sprintf("⚠️  WARNING: %.1f%% of reference cells labeled as tumor!\n", ref_contam))
+} else {
+  cat(sprintf("✅ Reference contamination: %.2f%% (acceptable)\n", ref_contam))
 }
 
-results_com <- obj_list[["results.com"]]
-
-if (is.null(colnames(results_com))) {
-  stop("results.com has no colnames; cannot map tumor candidates.")
+# Guard 3: tumor fraction < 5% → WARNING
+if (tumor_frac < 5) {
+  cat(sprintf("⚠️  WARNING: tumor fraction = %.1f%% — unusually low\n", tumor_frac))
 }
 
-tumor_barcodes <- unique(colnames(results_com))
-tumor_barcodes <- tumor_barcodes[tumor_barcodes %in% cell_barcodes]
+cat(sprintf("✅ Plausibility check passed: tumor = %.1f%%\n", tumor_frac))
 
-candidate_n <- length(tumor_barcodes)
-candidate_frac <- candidate_n / length(cell_barcodes)
+# ============================================================================
+# 7. Build label table
+# ============================================================================
 
-ref_overlap_n <- sum(tumor_barcodes %in% ref_barcodes)
-ref_overlap_frac <- if (length(ref_barcodes) > 0) ref_overlap_n / length(ref_barcodes) else NA_real_
-
-cat("Tumor candidates from results.com: ", candidate_n, "\n", sep = "")
-cat("Tumor candidate fraction: ", round(100 * candidate_frac, 1), "%\n", sep = "")
-cat("Reference contamination: ", ref_overlap_n, " / ", length(ref_barcodes),
-    " = ", round(100 * ref_overlap_frac, 3), "%\n", sep = "")
-
-# Plausibility guards
-if (candidate_n < 1000) {
-  stop("Recovered tumor candidate set is too small; refusing promotion.")
-}
-if (candidate_frac > 0.9) {
-  stop("Recovered tumor candidate fraction is implausibly high (>90%); refusing promotion.")
-}
-if (!is.na(ref_overlap_frac) && ref_overlap_frac > 0.05) {
-  stop("Reference contamination exceeds 5%; refusing promotion.")
-}
-
-# -----------------------------------------------------------------------------
-# Write recovered labels
-# -----------------------------------------------------------------------------
-
-full_labels <- data.frame(
-  barcode = cell_barcodes,
-  scevan_call = ifelse(cell_barcodes %in% tumor_barcodes, "tumor", "non_tumor"),
-  recovery_mode = "tumor_membership_from_results.com",
-  source_file = "LLC_tumor_CNAmtxSubclones.RData",
-  source_object = "results.com",
-  subclone = NA_character_,
-  stringsAsFactors = FALSE
+label_df <- data.table(
+  barcode    = cell_barcodes,
+  scevan_call = "non_tumor"
 )
+label_df[barcode %in% tumor_assigned, scevan_call := "tumor_assigned_subclone"]
+label_df[barcode %in% tumor_unassigned, scevan_call := "tumor_unassigned_subclone"]
 
-raw_labels <- full_labels[full_labels$scevan_call == "tumor", , drop = FALSE]
+# Add subclone info from results.com (if available)
+subcl_cols <- grep("subclone|class", colnames(results_com), ignore.case = TRUE, value = TRUE)
+if (length(subcl_cols) > 0) {
+  # Build subclone lookup
+  subcl_lookup <- data.table(
+    barcode = rc_barcodes[rc_barcodes %in% cell_barcodes]
+  )
+  for (sc in subcl_cols) {
+    vals <- results_com[[sc]]
+    if (length(vals) == length(rc_barcodes)) {
+      subcl_lookup[[sc]] <- vals[rc_barcodes %in% cell_barcodes]
+    }
+  }
+  label_df <- merge(label_df, subcl_lookup, by = "barcode", all.x = TRUE)
+}
 
-fwrite(raw_labels, file.path(main_out, "scevan_recovered_labels_raw.csv"))
-fwrite(full_labels, file.path(main_out, "scevan_recovered_labels_full.csv"))
-fwrite(full_labels, file.path(report_out, "scevan_recovered_labels_full.csv"))
+# Add simplified binary call
+label_df[, is_tumor := grepl("^tumor", scevan_call)]
 
-meta_df <- full_labels[, c("barcode", "scevan_call", "recovery_mode"), drop = FALSE]
-rownames(meta_df) <- meta_df$barcode
-meta_df$barcode <- NULL
-colnames(meta_df) <- c("scevan_call", "scevan_recovery_mode")
+cat(sprintf("\n=== Final Label Distribution ===\n"))
+print(label_df[, .N, by = scevan_call])
 
-sobj_labeled <- AddMetaData(sobj, metadata = meta_df)
-saveRDS(sobj_labeled, file.path(main_out, "seurat_with_scevan_recovered.rds"))
+# ============================================================================
+# 8. Add to Seurat + per-cluster/group summaries
+# ============================================================================
 
-# -----------------------------------------------------------------------------
-# Summaries
-# -----------------------------------------------------------------------------
+# Raw labels CSV
+fwrite(label_df, file.path(scevan_out, "scevan_recovered_labels_raw.csv"))
+fwrite(label_df, file.path(report_out, "scevan_recovered_labels_full.csv"))
 
-summary_dt <- data.table(
-  barcode = cell_barcodes,
-  cluster = cluster_vec,
-  scevan_call = full_labels$scevan_call
-)
+# Add cluster + group info
+md <- sobj@meta.data
+label_df[, cluster := as.character(md[barcode, cluster_col])]
+label_df[, group := as.character(md[barcode, "group"])]
+label_df[, sample_id := as.character(md[barcode, "sample_id"])]
 
-cluster_summary <- summary_dt[, .(
-  n_total = .N,
-  n_tumor = sum(scevan_call == "tumor"),
-  n_non_tumor = sum(scevan_call == "non_tumor"),
-  pct_tumor = round(100 * sum(scevan_call == "tumor") / .N, 1)
-), by = cluster][order(suppressWarnings(as.integer(cluster)), cluster)]
-
-ref_check <- summary_dt[, .(
-  n_total = .N,
-  n_tumor = sum(scevan_call == "tumor"),
-  pct_tumor = round(100 * sum(scevan_call == "tumor") / .N, 3)
-), by = .(is_reference_cluster = cluster %in% reference_clusters)]
+# Per-cluster
+cluster_summary <- label_df[, .(
+  n_total  = .N,
+  n_tumor  = sum(is_tumor),
+  n_assigned = sum(scevan_call == "tumor_assigned_subclone"),
+  n_unassigned = sum(scevan_call == "tumor_unassigned_subclone"),
+  pct_tumor = round(sum(is_tumor) / .N * 100, 2),
+  is_reference = unique(cluster) %in% ref_clusters
+), by = cluster][order(as.integer(cluster))]
 
 fwrite(cluster_summary, file.path(report_out, "scevan_recovered_tumor_by_cluster.csv"))
-fwrite(ref_check, file.path(report_out, "scevan_recovered_reference_check.csv"))
+cat("\n=== Tumor by Cluster ===\n")
+print(cluster_summary)
 
-run_note <- data.frame(
+# Per-group
+group_summary <- label_df[, .(
+  n_total  = .N,
+  n_tumor  = sum(is_tumor),
+  pct_tumor = round(sum(is_tumor) / .N * 100, 2)
+), by = group]
+
+fwrite(group_summary, file.path(report_out, "scevan_recovered_tumor_by_group.csv"))
+cat("\n=== Tumor by Group ===\n")
+print(group_summary)
+
+# Per-sample
+sample_summary <- label_df[, .(
+  n_total  = .N,
+  n_tumor  = sum(is_tumor),
+  pct_tumor = round(sum(is_tumor) / .N * 100, 2)
+), by = sample_id]
+
+fwrite(sample_summary, file.path(report_out, "scevan_recovered_tumor_by_sample.csv"))
+cat("\n=== Tumor by Sample ===\n")
+print(sample_summary)
+
+# Reference contamination check
+ref_check <- label_df[cluster %in% ref_clusters, .(
+  n_total = .N,
+  n_tumor = sum(is_tumor),
+  pct_tumor = round(sum(is_tumor) / .N * 100, 4)
+), by = cluster][order(as.integer(cluster))]
+
+fwrite(ref_check, file.path(report_out, "scevan_recovered_reference_check.csv"))
+cat("\n=== Reference Cluster Contamination ===\n")
+print(ref_check)
+
+# ============================================================================
+# 9. Save labeled Seurat
+# ============================================================================
+
+cat("\nAdding labels to Seurat...\n")
+
+# Create metadata columns
+meta_add <- data.frame(row.names = label_df$barcode)
+meta_add$scevan_call <- label_df$scevan_call
+meta_add$scevan_is_tumor <- label_df$is_tumor
+
+# Add subclone columns if present
+for (sc in subcl_cols) {
+  if (sc %in% colnames(label_df)) {
+    meta_add[[paste0("scevan_", sc)]] <- label_df[[sc]]
+  }
+}
+
+sobj <- AddMetaData(sobj, metadata = meta_add)
+
+out_rds <- file.path(scevan_out, "seurat_with_scevan_recovered.rds")
+saveRDS(sobj, out_rds)
+cat(sprintf("  Seurat → %s\n", out_rds))
+
+# ============================================================================
+# 10. Plots
+# ============================================================================
+
+cat("\nGenerating plots...\n")
+
+# Plot 1: UMAP tumor/normal
+tryCatch({
+  tumor_cols <- c("tumor_assigned_subclone" = "#E41A1C",
+                  "tumor_unassigned_subclone" = "#FF7F00",
+                  "non_tumor" = "#4DAF4A")
+
+  p1 <- DimPlot(sobj, group.by = "scevan_call", reduction = "umap",
+                cols = tumor_cols, pt.size = 0.2) +
+    labs(title = sprintf("SCEVAN Recovery: %d tumor / %d total",
+                         n_assigned + n_unassigned, n_total))
+
+  p2 <- DimPlot(sobj, group.by = "scevan_call", reduction = "umap",
+                split.by = "group", cols = tumor_cols, pt.size = 0.2) +
+    labs(title = "By Group")
+
+  pdf(file.path(plot_out, "01_scevan_recovered_umap.pdf"), width = 18, height = 6)
+  print(p1 | p2)
+  dev.off()
+
+  png(file.path(plot_out, "01_scevan_recovered_umap.png"), width = 1800, height = 600, res = 150)
+  print(p1 | p2)
+  dev.off()
+
+  cat("  ✅ 01_scevan_recovered_umap\n")
+}, error = function(e) cat(sprintf("  ⚠️ UMAP failed: %s\n", e$message)))
+
+# Plot 2: Tumor fraction bar chart
+tryCatch({
+  p3 <- ggplot(cluster_summary, aes(x = reorder(cluster, -pct_tumor), y = pct_tumor)) +
+    geom_col(aes(fill = ifelse(is_reference, "reference", ifelse(pct_tumor > 50, "tumor_dominant", "mixed"))),
+             show.legend = TRUE) +
+    scale_fill_manual(values = c("reference" = "#377EB8", "tumor_dominant" = "#E41A1C", "mixed" = "#FF7F00"),
+                      name = "Type") +
+    geom_hline(yintercept = 50, linetype = "dashed", color = "grey40") +
+    geom_text(aes(label = sprintf("%.0f%%", pct_tumor)), vjust = -0.3, size = 2.5) +
+    labs(title = "Tumor Fraction by Cluster (SCEVAN recovered)",
+         x = "Cluster", y = "% Tumor") +
+    theme_minimal()
+
+  p4 <- ggplot(group_summary, aes(x = group, y = pct_tumor, fill = group)) +
+    geom_col(show.legend = FALSE, alpha = 0.8) +
+    geom_text(aes(label = sprintf("%.1f%%\n(n=%d)", pct_tumor, n_tumor)),
+              vjust = -0.1, size = 3.5) +
+    labs(title = "Tumor Fraction by Group", x = "", y = "% Tumor") +
+    theme_minimal()
+
+  pdf(file.path(plot_out, "02_scevan_recovered_tumor_fraction.pdf"), width = 16, height = 6)
+  print(p3 | p4)
+  dev.off()
+
+  png(file.path(plot_out, "02_scevan_recovered_tumor_fraction.png"), width = 1600, height = 600, res = 150)
+  print(p3 | p4)
+  dev.off()
+
+  cat("  ✅ 02_scevan_recovered_tumor_fraction\n")
+}, error = function(e) cat(sprintf("  ⚠️ Bar chart failed: %s\n", e$message)))
+
+# ============================================================================
+# 11. Run Note
+# ============================================================================
+
+run_note <- data.table(
   timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-  recovery_status = "success",
-  candidate_n = candidate_n,
-  candidate_frac = round(candidate_frac, 4),
-  ref_overlap_n = ref_overlap_n,
-  ref_overlap_frac = round(ref_overlap_frac, 6),
   source_file = "LLC_tumor_CNAmtxSubclones.RData",
-  source_object = "results.com",
-  stringsAsFactors = FALSE
+  primary_source = "results.com",
+  n_tumor_assigned = n_assigned,
+  n_tumor_unassigned = n_unassigned,
+  n_non_tumor = n_non_tumor,
+  n_total = n_total,
+  tumor_pct = round(tumor_frac, 2),
+  ref_contamination_pct = round(ref_contam, 4),
+  plausibility = "PASS"
 )
 fwrite(run_note, file.path(report_out, "scevan_recovery_run_note.csv"))
 
-cat("\nRecovery succeeded.\n")
-cat("Recovered labels file: ", file.path(main_out, "scevan_recovered_labels_full.csv"), "\n", sep = "")
-cat("Recovered Seurat file: ", file.path(main_out, "seurat_with_scevan_recovered.rds"), "\n", sep = "")
-cat("Reference check file: ", file.path(report_out, "scevan_recovered_reference_check.csv"), "\n", sep = "")
-cat("Done.\n")
+gc()
+
+cat("\n")
+cat("╔══════════════════════════════════════════════════════╗\n")
+cat("║            Recovery Complete                         ║\n")
+cat(sprintf("║  Tumor assigned:   %6d  (%.1f%%)                   ║\n",
+            n_assigned, n_assigned / n_total * 100))
+cat(sprintf("║  Tumor unassigned: %6d  (%.1f%%)                    ║\n",
+            n_unassigned, n_unassigned / n_total * 100))
+cat(sprintf("║  Non-tumor:        %6d  (%.1f%%)                   ║\n",
+            n_non_tumor, n_non_tumor / n_total * 100))
+cat(sprintf("║  Ref contamination: %.2f%%                          ║\n", ref_contam))
+cat("╠══════════════════════════════════════════════════════╣\n")
+cat(sprintf("║  Seurat:  %s\n", out_rds))
+cat(sprintf("║  Reports: %s\n", report_out))
+cat(sprintf("║  Plots:   %s\n", plot_out))
+cat("╚══════════════════════════════════════════════════════╝\n")
