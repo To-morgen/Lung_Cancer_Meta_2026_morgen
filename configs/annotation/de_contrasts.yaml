@@ -1,40 +1,143 @@
-# DE analysis contrasts
-# Each contrast: name, group1, group2, subset (optional celltype filter)
+# ============================================================================
+# de_contrasts.yaml — Differential Expression Design
+#
+# Experimental design:
+#   mc  = mock (empty vector control)
+#   FL  = full-length wildtype GPRIN2 overexpression
+#   A1  = pathogenic GPRIN2 mutant
+#
+# Core question:
+#   How does wildtype vs mutant GPRIN2 affect tumor and TME transcriptomes?
+# ============================================================================
 
+# ── Group variable ──
+group_var: "group"
+sample_var: "sample_id"
+reference_group: "mc"      # empty vector = biological baseline
+
+# ── Pairwise contrasts ──
+# Format: name: [numerator, denominator]
+# DESeq2 results(): contrast = c("group", num, denom)
 contrasts:
-  # Global comparisons (all cells)
-  - name: "FL_vs_mc"
-    group1: "FL"
-    group2: "mc"
-    subset: null
+  FL_vs_mc:
+    numerator: "FL"
+    denominator: "mc"
+    description: "Wildtype GPRIN2 effect (tumor suppression)"
 
-  - name: "A1_vs_mc"
-    group1: "A1"
-    group2: "mc"
-    subset: null
+  A1_vs_mc:
+    numerator: "A1"
+    denominator: "mc"
+    description: "Mutant GPRIN2 effect (loss of function?)"
 
-  - name: "FL_vs_A1"
-    group1: "FL"
-    group2: "A1"
-    subset: null
+  A1_vs_FL:
+    numerator: "A1"
+    denominator: "FL"
+    description: "Mutation-specific effect (A1 vs wildtype)"
 
-  # Per-celltype comparisons
-  - name: "FL_vs_mc_Tumor"
-    group1: "FL"
-    group2: "mc"
-    subset: "Tumor"
+# ── Analysis axes ──
+axes:
+  tumor_intrinsic:
+    description: "DE within confirmed tumor cells"
+    celltype_L1_include: ["Tumor"]
+    # Run per celltype_L2 AND pooled across all Tumor L2
+    run_per_L2: true
+    run_pooled: true
+    # Sensitivity: also run with Unresolved included
+    sensitivity_include_L1: ["Tumor", "Unresolved"]
 
-  - name: "FL_vs_A1_Tumor"
-    group1: "FL"
-    group2: "A1"
-    subset: "Tumor"
+  tme_per_celltype:
+    description: "DE within each TME celltype"
+    celltype_L1_include: ["Myeloid", "Lymphoid", "Stromal", "Cycling"]
+    celltype_L1_exclude: ["Artifact"]
+    run_per_L2: true
+    run_pooled: false
 
-  - name: "FL_vs_mc_TAM"
-    group1: "FL"
-    group2: "mc"
-    subset: "Myeloid"
+  epithelial_normal:
+    description: "Normal epithelium as internal control"
+    celltype_L1_include: ["Epithelial_normal"]
+    run_per_L2: false
+    run_pooled: true
 
-  - name: "FL_vs_A1_TAM"
-    group1: "FL"
-    group2: "A1"
-    subset: "Myeloid"
+# ── Pseudobulk filtering ──
+pseudobulk:
+  min_cells_per_sample: 30       # sample×celltype must have ≥30 cells
+  min_samples_per_group: 2       # group must have ≥2 qualifying samples
+  min_total_count: 1000          # pseudobulk sample min total UMI
+  min_detected_genes: 200        # pseudobulk sample min detected genes
+
+# ── DESeq2 parameters ──
+deseq2:
+  test: "Wald"                   # "Wald" or "LRT"
+  fitType: "local"               # "parametric", "local", "mean"
+  alpha: 0.05                    # FDR threshold
+  lfcThreshold: 0                # for results(); set >0 for strict LFC test
+  independent_filtering: true
+
+# ── Result thresholds for reporting ──
+thresholds:
+  padj: 0.05
+  log2fc: 0.5                   # |log2FC| > 0.5 for "significant" label
+  log2fc_strict: 1.0            # |log2FC| > 1.0 for "strong" label
+
+# ── Enrichment (fgsea / clusterProfiler) ──
+enrichment:
+  method: "fgsea"                # "fgsea" or "clusterProfiler"
+  ranking_metric: "sign_log_p"   # sign(log2FC) × -log10(pvalue)
+  nPermSimple: 10000
+  min_size: 15
+  max_size: 500
+
+  gene_sets:
+    - name: "Hallmark"
+      collection: "H"
+      species: "Mus musculus"
+    - name: "KEGG"
+      collection: "C2"
+      subcollection: "CP:KEGG_LEGACY"
+      species: "Mus musculus"
+    - name: "Reactome"
+      collection: "C2"
+      subcollection: "CP:REACTOME"
+      species: "Mus musculus"
+    - name: "GO_BP"
+      collection: "C5"
+      subcollection: "GO:BP"
+      species: "Mus musculus"
+
+  # Focused gene sets for this project
+  custom_focus:
+    - "HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION"
+    - "HALLMARK_TNFA_SIGNALING_VIA_NFKB"
+    - "HALLMARK_INTERFERON_GAMMA_RESPONSE"
+    - "HALLMARK_IL6_JAK_STAT3_SIGNALING"
+    - "HALLMARK_ANGIOGENESIS"
+    - "HALLMARK_HYPOXIA"
+    - "HALLMARK_P53_PATHWAY"
+    - "HALLMARK_APOPTOSIS"
+    - "HALLMARK_MYC_TARGETS_V1"
+    - "HALLMARK_G2M_CHECKPOINT"
+    - "HALLMARK_E2F_TARGETS"
+    - "HALLMARK_INFLAMMATORY_RESPONSE"
+    - "HALLMARK_COMPLEMENT"
+    - "HALLMARK_KRAS_SIGNALING_UP"
+    - "HALLMARK_WNT_BETA_CATENIN_SIGNALING"
+
+  # Gene-level pre-filtering for pseudobulk
+  min_count_per_gene: 5        # gene must have >= N counts in a pseudobulk sample          # gene must have >= this count
+  min_samples_expressing: 2    # in >= N pseudobulk samples        # in >= this many pseudobulk samples
+
+# ── Visualization ──
+visualization:
+  volcano:
+    top_n_label: 15              # number of top genes to label
+  # Key analyses to feature in summary plots (by celltype pattern)
+  # Change these when switching projects
+  highlight_celltypes:
+    - "pooled"
+    - "Twist1"
+    - "Postn"
+    - "Neutrophil"
+    - "macrophage"
+    - "T_cell"
+    - "NK"
+  max_volcano_panels: 12

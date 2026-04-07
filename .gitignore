@@ -62,11 +62,6 @@ figures/
 !scripts/.gitkeep
 
 # OPTIONAL: allow small, publication-critical final outputs
-# (If you prefer "zero results in git", delete this block.)
-!results/tables/
-!results/tables/*.tsv
-!results/tables/*.csv
-!results/tables/*.txt
 
 !figures/final/
 !figures/final/*.pdf

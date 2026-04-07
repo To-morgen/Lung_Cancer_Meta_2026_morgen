@@ -1,0 +1,111 @@
+workflow/scrna/
+├── 01_alignment
+│   ├── 01_cellranger_count.sh
+│   ├── 02_cellranger_qc_summary.sh
+│   ├── 03_cellranger_subset_test.sh
+│   └── README.md
+├── 02_qc
+│   ├── 00_soupx_ambient.R
+│   ├── 01_create_seurat.R
+│   ├── 02_qc_filter.R
+│   ├── 03_doublet_removal.R
+│   ├── 04_qc_visualization.R
+│   ├── README.md
+│   └── run_qc_pipeline.R
+├── 03_normalize
+│   ├── 01_merge_samples.R
+│   ├── 02_cell_cycle_score.R
+│   ├── 03_sctransform.R
+│   ├── 04_pca.R
+│   └── 05_cc_assessment.R
+├── 04_integrate
+│   ├── 01_harmony.R
+│   ├── README.md
+│   └── run_integration_pipeline.R
+├── 05_cluster
+│   ├── 01_cluster_umap.R
+│   ├── 02_cluster_qc.R
+│   └── README.md
+├── 06_annotate
+│   ├── 01_find_markers.R
+│   ├── 02_singler_auto.R
+│   ├── 03_manual_annotate.R
+│   ├── README.md
+│   └── run_annotation_pipeline.R
+├── 07_cnv
+│   ├── 01_cnv_to_annotation.R
+│   └── README.md
+├── 07_figures
+├── 08_de
+│   ├── 01_pseudobulk_de.R
+│   ├── 02_enrichment.R
+│   ├── 03_de_visualization.R
+│   └── run_de_pipeline.R
+├── 09_cellchat
+│   └── README.md
+├── 10_trajectory
+│   └── README.md
+├── 11_advanced
+│   └── README.md
+├── functions
+│   ├── annotation_utils.R
+│   ├── cellranger_utils.sh
+│   ├── io_scrna.R
+│   ├── qc_utils.R
+│   └── README.md
+└── README.md
+
+13 directories, 42 files
+results/scrna/
+├── 01_alignment
+├── 02_qc
+│   ├── clean
+│   ├── doublets
+│   ├── plots
+│   ├── qc_filtered
+│   ├── raw_seurat
+│   ├── reports
+│   └── soupx
+├── 03_normalize
+│   ├── merged
+│   ├── normalized
+│   ├── pca
+│   ├── plots
+│   └── reports
+├── 04_integrate
+│   ├── harmony
+│   ├── plots
+│   └── reports
+├── 05_cluster
+│   ├── objects
+│   ├── plots
+│   └── reports
+├── 06_annotate
+│   ├── markers
+│   ├── objects
+│   ├── plots
+│   ├── reports
+│   └── singler
+├── 07_cnv
+│   ├── consensus
+│   ├── infercnv
+│   ├── _invalid_recovery_20260406
+│   ├── plots
+│   ├── reports
+│   └── scevan
+├── 08_de
+│   ├── celltype_L2_group_sample_counts.csv
+│   ├── deseq2
+│   ├── enrichment
+│   ├── plots
+│   ├── pseudobulk
+│   └── reports
+└── 10_cnv
+    ├── consensus
+    ├── infercnv
+    ├── _invalid_recovery_20260406
+    ├── plots
+    ├── reports
+    └── scevan
+
+49 directories, 1 file
