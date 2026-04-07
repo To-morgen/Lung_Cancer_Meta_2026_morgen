@@ -1,0 +1,12 @@
+modules/
+tmp/
+scratch/
+data
+results/
+renv/library/
+renv/staging/
+logs/
+figures/
+*.rds
+*.h5ad
+*.mtx
