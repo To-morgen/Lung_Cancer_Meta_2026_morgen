@@ -2,10 +2,14 @@
 # io_scrna.R — I/O utilities for scRNA-seq pipeline
 #
 # Provides:
+#   - load_dataset_config()   → full dataset YAML
 #   - load_sample_list()      → character vector of sample IDs
 #   - load_sample_groups()    → named vector: sample → group
-#   - scrna_output_dirs()     → phase-specific directory list
-#   - load_dataset_config()   → full dataset YAML
+#   - scrna_output_dirs()     → phase-specific directory list (generic)
+#   - scrna_integrate_dirs()  → Phase 04 dirs
+#   - scrna_cluster_dirs()    → Phase 05 dirs
+#   - scrna_annotate_dirs()   → Phase 06 dirs  [NEW]
+#   - scrna_de_dirs()         → Phase 08 dirs  [NEW]
 # ============================================================================
 
 suppressPackageStartupMessages({
@@ -14,6 +18,17 @@ suppressPackageStartupMessages({
 })
 
 source(here("scripts", "utils", "utils_io.R"))
+
+# ---- Internal helper: resolve base path with DS_PREFIX ----
+.scrna_base <- function(phase) {
+  ds_prefix <- Sys.getenv("DS_PREFIX", unset = "")
+  if (ds_prefix != "") {
+    base <- here("results", "scrna", ds_prefix, phase)
+  } else {
+    base <- here("results", "scrna", phase)
+  }
+  base
+}
 
 # ---- Dataset Config ----
 
@@ -45,10 +60,10 @@ load_sample_groups <- function() {
   grp
 }
 
-# ---- Output Directories (phase-aware) ----
+# ---- Output Directories (phase-aware, generic) ----
 
 scrna_output_dirs <- function(phase = "02_qc") {
-  base <- here("results", "scrna", phase)
+  base <- .scrna_base(phase)
 
   if (phase == "02_qc") {
     dirs <- list(
@@ -79,6 +94,31 @@ scrna_output_dirs <- function(phase = "02_qc") {
       plots    = file.path(base, "plots"),
       reports  = file.path(base, "reports")
     )
+  } else if (phase == "05_cluster") {
+    dirs <- list(
+      base    = base,
+      objects = file.path(base, "objects"),
+      plots   = file.path(base, "plots"),
+      reports = file.path(base, "reports")
+    )
+  } else if (phase == "06_annotate") {
+    dirs <- list(
+      base    = base,
+      markers = file.path(base, "markers"),
+      singler = file.path(base, "singler"),
+      objects = file.path(base, "objects"),
+      plots   = file.path(base, "plots"),
+      reports = file.path(base, "reports")
+    )
+  } else if (phase == "08_de") {
+    dirs <- list(
+      base       = base,
+      pseudobulk = file.path(base, "pseudobulk"),
+      deseq2     = file.path(base, "deseq2"),
+      enrichment = file.path(base, "enrichment"),
+      plots      = file.path(base, "plots"),
+      reports    = file.path(base, "reports")
+    )
   } else {
     # Generic fallback
     dirs <- list(
@@ -88,15 +128,19 @@ scrna_output_dirs <- function(phase = "02_qc") {
     )
   }
 
-  # Ensure all dirs exist
   lapply(dirs, function(d) dir.create(d, recursive = TRUE, showWarnings = FALSE))
+  ds_prefix <- Sys.getenv("DS_PREFIX", unset = "")
+  if (ds_prefix != "") {
+    log_msg(sprintf("Output dirs: results/scrna/%s/%s (%d subdirs)",
+                    ds_prefix, phase, length(dirs)))
+  }
   invisible(dirs)
 }
 
-# ---- Phase 4/5 output directory helpers ----
+# ---- Phase-specific convenience helpers ----
 
 scrna_integrate_dirs <- function() {
-  base <- here::here("results", "scrna", "04_integrate")
+  base <- .scrna_base("04_integrate")
   dirs <- list(
     base    = base,
     harmony = file.path(base, "harmony"),
@@ -108,7 +152,7 @@ scrna_integrate_dirs <- function() {
 }
 
 scrna_cluster_dirs <- function() {
-  base <- here::here("results", "scrna", "05_cluster")
+  base <- .scrna_base("05_cluster")
   dirs <- list(
     base    = base,
     objects = file.path(base, "objects"),
@@ -119,4 +163,32 @@ scrna_cluster_dirs <- function() {
   dirs
 }
 
-cat("[init] io_scrna.R: 04_integrate + 05_cluster dirs registered\n")
+scrna_annotate_dirs <- function() {
+  base <- .scrna_base("06_annotate")
+  dirs <- list(
+    base    = base,
+    markers = file.path(base, "markers"),
+    singler = file.path(base, "singler"),
+    objects = file.path(base, "objects"),
+    plots   = file.path(base, "plots"),
+    reports = file.path(base, "reports")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  dirs
+}
+
+scrna_de_dirs <- function() {
+  base <- .scrna_base("08_de")
+  dirs <- list(
+    base       = base,
+    pseudobulk = file.path(base, "pseudobulk"),
+    deseq2     = file.path(base, "deseq2"),
+    enrichment = file.path(base, "enrichment"),
+    plots      = file.path(base, "plots"),
+    reports    = file.path(base, "reports")
+  )
+  for (d in dirs) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  dirs
+}
+
+cat("[init] io_scrna.R loaded (DS_PREFIX-aware, phases 02–08)\n")

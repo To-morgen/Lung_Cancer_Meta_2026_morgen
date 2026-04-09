@@ -12,15 +12,42 @@ source(here("scripts", "utils", "utils_io.R"))
 
 #' Load annotation parameters from YAML
 #' @return list with all annotation config
+# ── 新 ──
 load_annotation_params <- function() {
-  path <- here("configs", "params", "scrna_annotation_params.yaml")
+  # Priority: ANNOTATION_CONFIG env var → default mouse config
+  override <- Sys.getenv("ANNOTATION_CONFIG", unset = "")
+  if (override != "" && file.exists(override)) {
+    path <- override
+  } else {
+    path <- here("configs", "params", "scrna_annotation_params.yaml")
+  }
   if (!file.exists(path)) stop("Annotation config not found: ", path)
   params <- yaml::read_yaml(path)
-  log_msg(sprintf("Annotation params loaded: %d lineage groups, %d project genes",
+  log_msg(sprintf("Annotation params loaded: %s | %d lineage groups, %d project genes",
+                  basename(path),
                   length(params$lineage_markers),
                   length(params$project_genes)))
   params
 }
+
+#' Load DE contrasts config
+#' Priority: DE_CONTRASTS_CONFIG env var → default de_contrasts.yaml
+#' @return list with all DE contrast config
+load_de_contrasts <- function() {
+  override <- Sys.getenv("DE_CONTRASTS_CONFIG", unset = "")
+  if (override != "" && file.exists(override)) {
+    path <- override
+  } else {
+    path <- here("configs", "annotation", "de_contrasts.yaml")
+  }
+  if (!file.exists(path)) stop("DE contrasts config not found: ", path)
+  cfg <- yaml::read_yaml(path)
+  log_msg(sprintf("DE contrasts loaded: %s | %d contrasts, %d axes",
+                  basename(path),
+                  length(cfg$contrasts), length(cfg$axes)))
+  cfg
+}
+
 
 #' Get deduplicated lineage marker vector (ordered, unique)
 #' @param params list from load_annotation_params()

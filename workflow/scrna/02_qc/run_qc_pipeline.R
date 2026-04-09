@@ -9,11 +9,13 @@
 library(here)
 
 steps <- c(
-  "01_soupx_ambient_removal.R",
-  "02_scdblfinder_doublets.R",
-  "03_seurat_qc_filter.R",
+  "00_soupx_ambient.R",
+  "01_create_seurat.R",
+  "02_qc_filter.R",
+  "03_doublet_removal.R",
   "04_qc_visualization.R"
 )
+
 
 cat("\n")
 cat("╔══════════════════════════════════════════════════╗\n")
@@ -65,12 +67,14 @@ if (n_fail > 0) {
   quit(status = 1)
 } else {
   cat("✅ All Phase 2 steps completed successfully!\n\n")
-  
-  out_base <- here("results", "scrna", "02_qc")
+
+  # ── DS_PREFIX-aware output summary ──
+  out_base <- here("results", "scrna",
+                   Sys.getenv("DS_PREFIX", unset = ""), "02_qc")
   dirs <- list(
     "SoupX corrected" = file.path(out_base, "soupx"),
     "Doublet calls"   = file.path(out_base, "doublets"),
-    "Filtered Seurat" = file.path(out_base, "filtered"),
+    "Filtered Seurat" = file.path(out_base, "clean"),
     "QC plots"        = file.path(out_base, "plots"),
     "Reports"         = file.path(out_base, "reports")
   )
