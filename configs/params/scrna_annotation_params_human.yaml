@@ -1,0 +1,139 @@
+# ============================================================================
+# scrna_annotation_params_human.yaml — Human lung cancer annotation config
+# ============================================================================
+species: "human"
+
+find_markers:
+  only_pos: true
+  min_pct: 0.25
+  logfc_threshold: 0.25
+  test_use: "wilcox"
+  top_n: [3, 5, 10, 20]
+
+lineage_markers:
+  Epithelial:
+    - EPCAM
+    - KRT19
+    - KRT8
+    - KRT18
+  T_cell:
+    - CD3D
+    - CD3E
+    - CD4
+    - CD8A
+    - CD8B
+  T_exhaustion:
+    - PDCD1
+    - LAG3
+    - HAVCR2
+    - TIGIT
+    - TOX
+  Treg:
+    - FOXP3
+    - IL2RA
+    - CTLA4
+    - IKZF2
+  NK:
+    - NKG7
+    - KLRB1
+    - NCR1
+    - GNLY
+    - GZMA
+  Macrophage:
+    - CD68
+    - CSF1R
+    - CD163
+    - ITGAM
+  TAM_M1:
+    - NOS2
+    - IL1B
+    - TNF
+    - CD86
+  TAM_M2:
+    - ARG1
+    - MRC1
+    - MSR1
+    - CD163
+  Monocyte:
+    - CD14
+    - FCGR3A
+    - CCR2
+    - VCAN
+  DC:
+    - ITGAX
+    - HLA-DRA
+    - FLT3
+    - XCR1
+    - CD1C
+    - CLEC9A
+  Neutrophil:
+    - S100A8
+    - S100A9
+    - FCGR3B
+    - CXCR2
+  B_cell:
+    - CD19
+    - MS4A1
+    - CD79A
+    - CD79B
+  Plasma:
+    - SDC1
+    - XBP1
+    - JCHAIN
+    - MZB1
+  Fibroblast:
+    - COL1A1
+    - COL1A2
+    - DCN
+    - PDGFRA
+  Endothelial:
+    - PECAM1
+    - CDH5
+    - VWF
+    - KDR
+  Pericyte:
+    - RGS5
+    - ACTA2
+    - PDGFRB
+  Cycling:
+    - MKI67
+    - TOP2A
+    - STMN1
+    - BIRC5
+  Contamination:
+    - HBB
+    - HBA1
+    - TUBB1
+    - PF4
+
+key_feature_markers:
+  - EPCAM
+  - CD3D
+  - CD8A
+  - CD4
+  - FOXP3
+  - PDCD1
+  - NKG7
+  - CD68
+  - CD163
+  - ITGAX
+  - S100A8
+  - CD14
+  - CD19
+  - COL1A1
+  - PECAM1
+  - MKI67
+
+project_genes:
+  - EGFR
+
+singler:
+  references:
+    - name: "HumanPrimaryCellAtlasData"
+      package: "celldex"
+      label_col: "label.main"
+    - name: "BlueprintEncodeData"
+      package: "celldex"
+      label_col: "label.main"
+  run_per_cell: true
+  de_method: "wilcox"

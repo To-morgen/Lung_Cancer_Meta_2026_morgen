@@ -1,0 +1,27 @@
+cluster,celltype_L1,celltype_L2,confidence,key_markers,notes
+1,Lymphoid,T_cells_CD8_cytotoxic,high,"CCL5,GZMA,GZMK,NKG7,CD8A",Cytotoxic CD8+ T cells
+2,Lymphoid,T_cells_CD4_helper_memory_like,medium,"CD3D,IL7R,CD3G,CD2",CD4+ helper/memory-like T cells
+3,Lymphoid,B_cells_naive,high,"MS4A1,CD79A,BANK1",Naive B cells
+4,Lymphoid,T_cells_regulatory,high,"TIGIT,FOXP3,CD3D",Regulatory T cells (Treg)
+5,Myeloid,Macrophages_C1Q_TAM,high,"C1QA,C1QB,C1QC,CD68",C1Q+ tumor-associated macrophages
+6,Tumor,Epithelial_tumor_AT2_like,high,"KRT18,KRT8,NAPSA,SFTA2,WFDC2",LUAD tumor cells (AT2-like)
+7,Lymphoid,T_cells_stress_response,medium,"SLC30A1,DUSP2,TNFAIP3,MT1F",Stress-response T-cell cluster with metallothionein/immediate-early response features
+8,Stromal,Fibroblasts_CAF,high,"DCN,COL1A2,COL3A1,LUM",Cancer-associated fibroblasts
+9,Myeloid,Macrophages_inflammatory,high,"AIF1,LYZ,SLC8A1,TYROBP",Inflammatory macrophages
+10,Lymphoid,T_cells_resting_naive_like,medium,"THEMIS,BCL11B,SKAP1",Resting/naive-like T cells
+11,Tumor,Epithelial_tumor_luminal_like,high,"CDH1,MUC1,SLC34A2,ELF3",LUAD tumor cells (epithelial/luminal-like)
+12,Lymphoid,NK_cells_cytotoxic,high,"GNLY,NKG7,KLRD1,PRF1,GZMB",Cytotoxic natural killer cells
+13,Lymphoid,Plasma_cells_IgG,high,"IGLC3,IGHG1,IGHG3,MZB1",Plasma cells (IgG-biased)
+14,Lymphoid,Plasma_cells_IgG_like,medium,"IGHGP,MZB1,DERL3",Plasma cells (IgG-like)
+15,Lymphoid,Plasma_cells_IgA_IGHM_JCHAIN,medium,"IGHM,IGHA2,JCHAIN,IGHA1,TNFRSF17",IgA/IgM-biased JCHAIN+ plasma cells
+16,Lymphoid,Plasma_cells_IgG4,high,"IGHG4,MZB1,CD79A",Plasma cells (IgG4-biased)
+17,Lymphoid,T_cells_CD4_ribosomal_high,low,"IL7R,RPS3,RPL3",CD4+ T cells (ribosomal high; state uncertain)
+18,Myeloid,Mast_cells,high,"CPA3,TPSB2,TPSAB1,MS4A2",Mast cells
+19,Lymphoid,Plasma_cells_IgA_JCHAIN,medium,"IGLC3,IGHA2,IGHA1,JCHAIN,DERL3",IgA-biased JCHAIN+ plasma cells
+20,Stromal,Endothelial_cells,high,"CALCRL,EMCN,EGFL7,CLEC14A",Vascular endothelial cells
+21,Stromal,Pericytes,high,"CALD1,MYL9,PDGFRB,PRKG1",Pericytes / smooth muscle-like cells
+22,Myeloid,Neutrophils,high,"S100A8,S100A9,FCGR3B,CSF3R",Neutrophils
+23,Cycling,Cycling_cells_mixed_lineage,high,"MKI67,TOP2A,STMN1,NUSAP1",Proliferating cells (mixed lineage)
+24,Epithelial,Epithelial_AT1_like,medium,"SCEL,CYP4B1,SEMA3E",AT1-like epithelial cells (provisional)
+25,Unresolved,Rare_epithelial_like_or_low_quality,low,"LINGO1",Low-feature cluster; possible rare epithelial state or doublets
+26,Stromal,Mesothelial_like,medium,"PLA2G2A,SAA1,ITLN1,PRG4",Mesothelial-like cells; not classic alveolar macrophages

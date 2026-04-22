@@ -1,0 +1,87 @@
+# ============================================================================
+# de_contrasts_gse253718.yaml — EGFR-mutant LUAD: Naive vs TKI-resistant
+# ============================================================================
+group_var: "group"
+sample_var: "sample_id"
+reference_group: "naive"
+
+contrasts:
+  TKI_vs_naive:
+    numerator: "TKI_resistant"
+    denominator: "naive"
+    description: "Transcriptomic changes upon TKI resistance"
+
+axes:
+  tumor_intrinsic:
+    description: "DE within tumor cells"
+    celltype_L1_include: ["Tumor"]
+    run_per_L2: true
+    run_pooled: true
+  tme_per_celltype:
+    description: "DE within each TME celltype"
+    celltype_L1_include: ["Myeloid", "Lymphoid", "Stromal", "Cycling"]
+    celltype_L1_exclude: ["Artifact"]
+    run_per_L2: true
+    run_pooled: false
+
+pseudobulk:
+  min_cells_per_sample: 30
+  min_samples_per_group: 2
+  min_total_count: 1000
+  min_detected_genes: 200
+
+deseq2:
+  test: "Wald"
+  fitType: "local"
+  alpha: 0.05
+  lfcThreshold: 0
+  independent_filtering: true
+
+thresholds:
+  padj: 0.05
+  log2fc: 0.5
+  log2fc_strict: 1.0
+
+enrichment:
+  method: "fgsea"
+  ranking_metric: "sign_log_p"
+  nPermSimple: 10000
+  min_size: 15
+  max_size: 500
+  gene_sets:
+    - name: "Hallmark"
+      collection: "H"
+      species: "Homo sapiens"
+    - name: "KEGG"
+      collection: "C2"
+      subcollection: "CP:KEGG_LEGACY"
+      species: "Homo sapiens"
+    - name: "Reactome"
+      collection: "C2"
+      subcollection: "CP:REACTOME"
+      species: "Homo sapiens"
+    - name: "GO_BP"
+      collection: "C5"
+      subcollection: "GO:BP"
+      species: "Homo sapiens"
+  custom_focus:
+    - "HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION"
+    - "HALLMARK_TNFA_SIGNALING_VIA_NFKB"
+    - "HALLMARK_INTERFERON_GAMMA_RESPONSE"
+    - "HALLMARK_PI3K_AKT_MTOR_SIGNALING"
+    - "HALLMARK_KRAS_SIGNALING_UP"
+    - "HALLMARK_ANGIOGENESIS"
+    - "HALLMARK_HYPOXIA"
+    - "HALLMARK_APOPTOSIS"
+  min_count_per_gene: 5
+  min_samples_expressing: 2
+
+visualization:
+  volcano:
+    top_n_label: 15
+    highlight_celltypes:
+      - "pooled"
+      - "Tumor"
+      - "macrophage"
+      - "T_cell"
+    max_volcano_panels: 12
