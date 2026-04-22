@@ -1,9 +1,8 @@
 """
-Snakefile — Novogene LLC scRNA-seq Pipeline
+Snakefile — GSE253718 EGFR-mutant LUAD (human)
 """
 import os
 
-# ── Path anchors (CWD-independent) ──
 SNAKEFILE_DIR = workflow.basedir
 PROJECT_ROOT  = os.path.normpath(os.path.join(SNAKEFILE_DIR, "..", "..", ".."))
 
@@ -16,8 +15,13 @@ SAMPLES   = config["samples"]
 
 ENV_VARS = (
     f'DS_CONFIG="{os.path.join(PROJECT_ROOT, config["ds_config"])}" '
-    f'DS_PREFIX="{DS_PREFIX}"'
+    f'DS_PREFIX="{DS_PREFIX}" '
+    f'ANNOTATION_CONFIG="{os.path.join(PROJECT_ROOT, config["annotation_config"])}" '
+    f'DE_CONTRASTS_CONFIG="{os.path.join(PROJECT_ROOT, config["de_contrasts_config"])}"'
 )
+
+RSCRIPT = "/usr/bin/Rscript"    # ← 加这行
+
 
 include: "../../snakemake/rules/gates.smk"        # ← 加这行
 include: "../../snakemake/rules/phase02_qc.smk"

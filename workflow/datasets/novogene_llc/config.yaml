@@ -1,0 +1,25 @@
+# ============================================================================
+# Snakemake config — Novogene LLC scRNA-seq (mouse)
+# R scripts read their own YAML via DS_CONFIG env var.
+# ============================================================================
+
+dataset_id: "INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1"
+ds_prefix: "novogene_llc"
+species: "mouse"
+
+# R-level dataset config (relative to project root)
+ds_config: "configs_private/datasets/INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1.yaml"
+
+# Optional: annotation + DE overrides (empty = use defaults)
+annotation_config: ""
+de_contrasts_config: ""
+
+samples:
+  - A1_1
+  - A1_2
+  - FL_1
+  - FL_2
+  - mc_1
+  - mc_2
+
+cellranger_out: "/data1/morgen/data_center/Lung_Cancer_2026/raw/internally_generated/INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1/cellranger_out"

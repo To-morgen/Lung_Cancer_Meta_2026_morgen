@@ -1,0 +1,35 @@
+# ============================================================================
+# Snakemake config — GSE253718 EGFR-mutant LUAD (human)
+# ============================================================================
+dataset_id: "PUB_GEO_LUAD_scRNA_GSE253718_v1"
+ds_prefix: "gse253718"
+species: "human"
+
+# R-level configs (relative to project root)
+ds_config: "configs/datasets/PUB_GEO_LUAD_scRNA_GSE253718_v1.yaml"
+annotation_config: "configs/params/scrna_annotation_params_human.yaml"
+de_contrasts_config: "configs/annotation/de_contrasts_gse253718.yaml"
+
+samples:
+  - TKI_1
+  - TKI_2
+  - TKI_3
+  - naive_1
+  - naive_2
+  - naive_3
+
+# Input: pre-processed 10x MTX (no CellRanger)
+mtx_dir: "/data1/morgen/data_center/Lung_Cancer_2026/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1/mtx_per_sample"
+
+run_phases:
+  phase01_alignment: false    # skip — already processed
+  phase02_qc: true            # skip SoupX, start from Create Seurat
+  phase03_normalize: true
+  phase04_integrate: true
+  phase05_cluster: true
+  phase06_annotate: true
+  phase07_cnv: false
+  phase08_de: true
+
+phase02:
+  skip_soupx: true            # no raw_feature_bc_matrix
