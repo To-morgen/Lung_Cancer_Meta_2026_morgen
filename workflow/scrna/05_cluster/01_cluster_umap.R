@@ -90,11 +90,30 @@ for (res in RESOLUTIONS) {
 
 # Set default active ident to default resolution
 default_col <- sprintf("clusters_res%.1f", DEFAULT_RES)
+log_msg(sprintf("Looking for default ident column: %s", default_col))
+log_msg(sprintf("Available cluster columns: %s",
+        paste(grep("clusters_res", colnames(sobj@meta.data), value = TRUE), collapse = ", ")))
+
 if (default_col %in% colnames(sobj@meta.data)) {
   Idents(sobj) <- default_col
+  sobj$seurat_clusters <- sobj@meta.data[[default_col]]
   log_msg(sprintf("Active Idents set to %s (%d clusters)",
                   default_col, length(levels(Idents(sobj)))))
+} else {
+  # Fallback: try exact match with different format
+  alt_cols <- grep(sprintf("res\\.?%s", DEFAULT_RES), colnames(sobj@meta.data), value = TRUE)
+  if (length(alt_cols) > 0) {
+    log_msg(sprintf("WARN: %s not found, using fallback: %s", default_col, alt_cols[1]))
+    Idents(sobj) <- alt_cols[1]
+    sobj$seurat_clusters <- sobj@meta.data[[alt_cols[1]]]
+  } else {
+    stop(sprintf("FATAL: No column matching default resolution %.1f found! Available: %s",
+                 DEFAULT_RES,
+                 paste(grep("cluster|res", colnames(sobj@meta.data), value = TRUE), collapse = ", ")))
+  }
 }
+log_msg(sprintf("Final active clusters: %d", length(levels(Idents(sobj)))))
+
 
 # ---- RunUMAP ----
 log_msg(sprintf("RunUMAP on Harmony 1:%d (n_neighbors=%d, min_dist=%.2f)...",

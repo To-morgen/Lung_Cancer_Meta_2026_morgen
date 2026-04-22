@@ -20,11 +20,11 @@ suppressPackageStartupMessages({
 source(here("scripts", "utils", "utils_io.R"))
 
 # ---- Paths ----
-scevan_obj   <- here("results", "scrna", "07_cnv", "scevan", "seurat_with_scevan.rds")
-annot_obj    <- here("results", "scrna", "06_annotate", "objects", "seurat_annotated.rds")
-mapping_file <- here("configs", "annotation", "celltype_mapping.csv")
-out_dir      <- here("results", "scrna", "06_annotate", "objects")
-report_dir   <- here("results", "scrna", "07_cnv", "reports")
+scevan_obj   <- scrna_base("07_cnv", "scevan", "seurat_with_scevan.rds")
+annot_obj    <- scrna_base("06_annotate", "objects", "seurat_annotated.rds")
+mapping_file <- scrna_base("configs", "annotation", "celltype_mapping.csv")
+out_dir      <- scrna_base("06_annotate", "objects")
+report_dir   <- scrna_base("07_cnv", "reports")
 
 cat("\\n")
 cat("==============================================================\\n")

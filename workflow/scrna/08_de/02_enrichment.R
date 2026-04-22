@@ -19,6 +19,7 @@ suppressPackageStartupMessages({
 })
 
 source(here("scripts", "utils", "utils_io.R"))
+source(here("workflow", "scrna", "functions", "io_scrna.R"))
 
 cat("\\n")
 cat("==============================================================\\n")
@@ -26,10 +27,25 @@ cat("   Phase 08 Step 2: Gene Set Enrichment (fgsea)               \\n")
 cat("==============================================================\\n\\n")
 
 # ---- Config ----
-de_config <- yaml::read_yaml(here("configs", "annotation", "de_contrasts.yaml"))
+# ── Load DE contrasts config (priority: env var → DS_PREFIX → default) ──
+de_yaml <- Sys.getenv("DE_CONTRASTS_CONFIG", "")
+if (!nzchar(de_yaml) || !file.exists(de_yaml)) {
+  ds_prefix <- Sys.getenv("DS_PREFIX", "")
+  if (nzchar(ds_prefix)) {
+    de_yaml_candidate <- here("configs", "annotation", sprintf("de_contrasts_%s.yaml", ds_prefix))
+    if (file.exists(de_yaml_candidate)) de_yaml <- de_yaml_candidate
+  }
+}
+if (!nzchar(de_yaml) || !file.exists(de_yaml)) {
+  de_yaml <- here("configs", "annotation", "de_contrasts.yaml")
+}
+if (!file.exists(de_yaml)) stop("DE contrasts config not found: ", de_yaml)
+de_config <- yaml::read_yaml(de_yaml)
 enr_config <- de_config$enrichment
+log_msg(sprintf("DE config loaded: %s", basename(de_yaml)))
 
-out_base <- here("results", "scrna", "08_de")
+
+out_base <- scrna_base("08_de")
 enr_dir  <- file.path(out_base, "enrichment")
 plot_dir <- file.path(out_base, "plots", "enrichment")
 dir.create(enr_dir, recursive = TRUE, showWarnings = FALSE)

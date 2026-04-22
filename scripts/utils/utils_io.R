@@ -33,10 +33,42 @@ load_env <- function(env_file = here(".env.sh")) {
   invisible(NULL)
 }
 
-#' Load dataset-specific config from configs_private
-#' @param dataset_id character (optional, auto-detect from .env.sh)
+#' Simple timestamped logger
+#' @param msg character message
+#' @param level "info", "warn", "error" (default "info")
+log_msg <- function(msg, level = "info") {
+  timestamp <- format(Sys.time(), "[%H:%M:%S]")
+  prefix <- switch(tolower(level),
+    warn  = "[warn]",
+    error = "[ERROR]",
+    "[info]"
+  )
+  cat(sprintf("%s %s %s\n", timestamp, prefix, msg))
+}
+
+#' Load dataset-specific config
+#' Priority: DS_CONFIG env var (Snakemake) > DATASET_ID env var (legacy)
+#' @param dataset_id character (optional, auto-detect from env)
 #' @return list (parsed YAML)
 load_dataset_config <- function(dataset_id = NULL) {
+  # ── Priority 1: DS_CONFIG env var (new standard, used by Snakemake) ──
+  cfg_path <- Sys.getenv("DS_CONFIG", unset = "")
+
+  if (nzchar(cfg_path)) {
+    # Resolve relative paths via here()
+    if (!startsWith(cfg_path, "/")) {
+      cfg_path <- here(cfg_path)
+    }
+    if (file.exists(cfg_path)) {
+      cfg <- yaml::read_yaml(cfg_path)
+      log_msg(sprintf("Loaded dataset config: %s (from %s)", cfg$dataset_id, cfg_path))
+      return(cfg)
+    } else {
+      log_msg(sprintf("DS_CONFIG set but file not found: %s", cfg_path), "WARN")
+    }
+  }
+
+  # ── Priority 2: DATASET_ID env var (legacy, backward-compatible) ──
   if (is.null(dataset_id)) {
     dataset_id <- Sys.getenv("DATASET_ID", unset = "")
     if (!nzchar(dataset_id)) {
@@ -44,40 +76,20 @@ load_dataset_config <- function(dataset_id = NULL) {
       dataset_id <- Sys.getenv("DATASET_ID", unset = "")
     }
   }
-  if (!nzchar(dataset_id)) stop("DATASET_ID not set")
-  
+
+  if (!nzchar(dataset_id)) stop("Neither DS_CONFIG nor DATASET_ID is set")
+
+  # Legacy path: configs_private/datasets/{DATASET_ID}.yaml
   cfg_path <- here("configs_private", "datasets", paste0(dataset_id, ".yaml"))
-  if (!file.exists(cfg_path)) stop("Config not found: ", cfg_path)
-  
-  log_msg(sprintf("Loaded dataset config: %s", dataset_id))
-  yaml::read_yaml(cfg_path)
-}
+  if (!file.exists(cfg_path)) {
+    # Also try configs/datasets/
+    cfg_path <- here("configs", "datasets", paste0(dataset_id, ".yaml"))
+  }
+  if (!file.exists(cfg_path)) stop("Config not found for dataset_id: ", dataset_id)
 
-#' Get DS_RAW path
-get_ds_raw <- function(dataset_id = NULL) {
-  # 1. Environment variable
-  ds_raw <- Sys.getenv("DS_RAW", unset = "")
-  if (nzchar(ds_raw) && dir.exists(ds_raw)) return(ds_raw)
-  
-  # 2. Load from .env.sh
-  load_env()
-  ds_raw <- Sys.getenv("DS_RAW", unset = "")
-  if (nzchar(ds_raw) && dir.exists(ds_raw)) return(ds_raw)
-  
-  # 3. Private config
-  cfg <- load_dataset_config(dataset_id)
-  ds_raw <- cfg$project_data_root %||% ""
-  if (nzchar(ds_raw) && dir.exists(ds_raw)) return(ds_raw)
-  
-  stop("DS_RAW not found. Source .env.sh or check configs_private/")
-}
-
-#' Standardized timestamp for filenames
-timestamp_str <- function() format(Sys.time(), "%Y%m%d_%H%M%S")
-
-#' Logging helper
-log_msg <- function(msg, level = "info") {
-  cat(sprintf("[%s] [%s] %s\n", format(Sys.time(), "%H:%M:%S"), level, msg))
+  cfg <- yaml::read_yaml(cfg_path)
+  log_msg(sprintf("Loaded dataset config: %s (from %s)", cfg$dataset_id, cfg_path))
+  cfg
 }
 
 cat("[init] scripts/utils/utils_io.R loaded\n")

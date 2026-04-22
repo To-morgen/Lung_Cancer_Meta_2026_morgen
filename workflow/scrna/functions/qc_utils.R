@@ -18,21 +18,20 @@ source(here("scripts", "utils", "utils_io.R"))
 
 #' Load QC parameters with priority chain:
 #'   dataset private config → project params → hardcoded defaults
-
 load_qc_params <- function() {
   # Hardcoded defaults (safety net)
   defaults <- list(
-    species            = "mouse",
-    filter_method      = "MAD",
-    n_mad              = 3,
-    min_genes          = 200,
-    max_genes          = Inf,
-    min_umi            = 500,
-    max_mt_pct         = 20,
+    species = "mouse",
+    filter_method = "MAD",
+    n_mad = 3,
+    min_genes = 200,
+    max_genes = Inf,
+    min_umi = 500,
+    max_mt_pct = 20,
     min_cells_per_gene = 3,
-    mito_pattern       = "^mt-",
-    ribo_pattern       = "^Rp[sl]",
-    doublet_seed       = 42
+    mito_pattern = "^mt-",
+    ribo_pattern = "^Rp[sl]",
+    doublet_seed = 42
   )
 
   # Project-level config
@@ -44,9 +43,13 @@ load_qc_params <- function() {
         defaults[[k]] <- proj$cell_filter[[k]]
       }
     }
+    # Read top-level species from project config
+    if (!is.null(proj$species)) defaults$species <- proj$species
     # Pass through additional top-level sections
-    if (!is.null(proj$normalization))  defaults$normalization  <- proj$normalization
-    if (!is.null(proj$cell_cycle))     defaults$cell_cycle     <- proj$cell_cycle
+    if (!is.null(proj$normalization)) defaults$normalization <- proj$normalization
+    if (!is.null(proj$cell_cycle)) defaults$cell_cycle <- proj$cell_cycle
+    if (!is.null(proj$clustering))    defaults$clustering    <- proj$clustering
+    if (!is.null(proj$integration))   defaults$integration   <- proj$integration
     log_msg("QC params: loaded project config")
   }
 
@@ -58,6 +61,11 @@ load_qc_params <- function() {
         defaults[[k]] <- ds_cfg$qc_overrides[[k]]
       }
       log_msg("QC params: dataset overrides applied")
+    }
+    # Top-level species from dataset config (highest priority)
+    if (!is.null(ds_cfg$species)) {
+      defaults$species <- ds_cfg$species
+      log_msg(sprintf("QC params: species = '%s' (from dataset config)", ds_cfg$species))
     }
   }, error = function(e) {
     log_msg(sprintf("QC params: no dataset overrides (%s)", e$message), "WARN")
@@ -72,10 +80,9 @@ load_qc_params <- function() {
     defaults$ribo_pattern <- "^RP[SL]"
   }
 
-  log_msg(sprintf("  method=%s, n_mad=%d, hard_min_genes=%d, hard_max_mt=%d%%",
-                  defaults$filter_method, defaults$n_mad,
-                  defaults$min_genes, defaults$max_mt_pct))
-
+  log_msg(sprintf("  species=%s, method=%s, n_mad=%d, hard_min_genes=%d, hard_max_mt=%d%%, mito_pattern=%s",
+                   defaults$species, defaults$filter_method, defaults$n_mad,
+                   defaults$min_genes, defaults$max_mt_pct, defaults$mito_pattern))
   defaults
 }
 

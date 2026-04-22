@@ -146,3 +146,13 @@ cellranger_out/
 fastq/
 fastq_subset/
 *.fastq.gz
+
+# Snakemake internals
+.snakemake/
+**/.snakemake/
+
+# Editor/IDE
+.kilo/
+
+# Backup files
+*.bak_*

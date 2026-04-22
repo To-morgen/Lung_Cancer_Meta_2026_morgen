@@ -30,19 +30,8 @@ source(here("scripts", "utils", "utils_io.R"))
   base
 }
 
-# ---- Dataset Config ----
 
-load_dataset_config <- function() {
-  cfg_path <- Sys.getenv("DS_CONFIG")
-  if (cfg_path == "" || !file.exists(cfg_path)) {
-    cfg_path <- here("configs", "datasets",
-                     paste0(Sys.getenv("DS_NAME", "UNKNOWN"), ".yaml"))
-  }
-  if (!file.exists(cfg_path)) stop("Dataset config not found: ", cfg_path)
-  cfg <- yaml::read_yaml(cfg_path)
-  log_msg(sprintf("Loaded dataset config: %s", cfg$dataset_id))
-  cfg
-}
+
 
 # ---- Sample List & Groups ----
 
@@ -192,3 +181,18 @@ scrna_de_dirs <- function() {
 }
 
 cat("[init] io_scrna.R loaded (DS_PREFIX-aware, phases 02–08)\n")
+
+# ---- DS_PREFIX-aware base path helper ----
+#' Build results path with optional DS_PREFIX
+#' Usage: scrna_base("03_normalize", "pca", "merged_pca.rds")
+#' With DS_PREFIX="gse253718" → results/scrna/gse253718/03_normalize/pca/merged_pca.rds
+#' Without DS_PREFIX         → results/scrna/03_normalize/pca/merged_pca.rds
+scrna_base <- function(...) {
+  ds_prefix <- Sys.getenv("DS_PREFIX", unset = "")
+  if (ds_prefix != "") {
+    here("results", "scrna", ds_prefix, ...)
+  } else {
+    here("results", "scrna", ...)
+  }
+}
+

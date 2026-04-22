@@ -37,7 +37,7 @@ cat(sprintf("║   PCs: 1:%d                                      ║\n", N_PCS)
 cat("╚══════════════════════════════════════════════════╝\n\n")
 
 # ---- Load PCA object ----
-pca_file <- here("results", "scrna", "03_normalize", "pca", "merged_pca.rds")
+pca_file <- scrna_base("03_normalize", "pca", "merged_pca.rds")
 if (!file.exists(pca_file)) {
   stop("PCA object not found: ", pca_file, "\nRun Phase 3 (04_pca.R) first!")
 }

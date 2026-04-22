@@ -25,7 +25,7 @@ source(here("scripts", "utils", "utils_plotting.R"))
 
 # ---- Config (from YAML, not hardcoded) ----
 ANNO_PARAMS <- load_annotation_params()
-out_base    <- here("results", "scrna", "06_annotate")
+out_base    <- scrna_base("06_annotate")
 dirs <- list(
   markers = file.path(out_base, "markers"),
   plots   = file.path(out_base, "plots"),
@@ -40,7 +40,7 @@ cat("==============================================================\n\n")
 
 # ---- Load ----
 log_msg("Loading clustered object...")
-sobj <- readRDS(here("results", "scrna", "05_cluster", "objects", "seurat_clustered.rds"))
+sobj <- readRDS(scrna_base("05_cluster", "objects", "seurat_clustered.rds"))
 DefaultAssay(sobj) <- "SCT"
 Idents(sobj) <- "seurat_clusters"
 n_clusters <- length(levels(Idents(sobj)))

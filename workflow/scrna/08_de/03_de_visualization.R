@@ -18,8 +18,9 @@ suppressPackageStartupMessages({
 })
 
 source(here("scripts", "utils", "utils_io.R"))
+source(here("workflow", "scrna", "functions", "io_scrna.R"))
 
-out_base <- here("results", "scrna", "08_de")
+out_base <- scrna_base("08_de")
 plot_dir <- file.path(out_base, "plots")
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 

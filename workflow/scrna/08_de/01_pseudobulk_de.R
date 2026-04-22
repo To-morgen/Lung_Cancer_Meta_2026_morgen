@@ -25,6 +25,7 @@ suppressPackageStartupMessages({
 })
 
 source(here("scripts", "utils", "utils_io.R"))
+source(here("workflow", "scrna", "functions", "io_scrna.R"))
 
 # ============================================================================
 # Config
@@ -34,10 +35,24 @@ cat("==============================================================\\n")
 cat("   Phase 08: Pseudobulk Differential Expression (DESeq2)      \\n")
 cat("==============================================================\\n\\n")
 
-de_config <- yaml::read_yaml(here("configs", "annotation", "de_contrasts.yaml"))
-log_msg("DE config loaded")
+# ── Load DE contrasts config (priority: env var → DS_PREFIX → default) ──
+de_yaml <- Sys.getenv("DE_CONTRASTS_CONFIG", "")
+if (!nzchar(de_yaml) || !file.exists(de_yaml)) {
+  ds_prefix <- Sys.getenv("DS_PREFIX", "")
+  if (nzchar(ds_prefix)) {
+    de_yaml_candidate <- here("configs", "annotation", sprintf("de_contrasts_%s.yaml", ds_prefix))
+    if (file.exists(de_yaml_candidate)) de_yaml <- de_yaml_candidate
+  }
+}
+if (!nzchar(de_yaml) || !file.exists(de_yaml)) {
+  de_yaml <- here("configs", "annotation", "de_contrasts.yaml")
+}
+if (!file.exists(de_yaml)) stop("DE contrasts config not found: ", de_yaml)
+de_config <- yaml::read_yaml(de_yaml)
+log_msg(sprintf("DE config loaded: %s", basename(de_yaml)))
 
-out_base <- here("results", "scrna", "08_de")
+
+out_base <- scrna_base("08_de")
 dirs <- list(
   pseudobulk  = file.path(out_base, "pseudobulk"),
   deseq2      = file.path(out_base, "deseq2"),
@@ -244,7 +259,7 @@ run_deseq2_contrast <- function(pb, group_var, contrast_name, num, denom, config
 # ============================================================================
 log_msg("Loading seurat_annotated_final.rds...")
 t_load <- Sys.time()
-sobj <- readRDS(here("results", "scrna", "06_annotate", "objects", "seurat_annotated_final.rds"))
+sobj <- readRDS(scrna_base("06_annotate", "objects", "seurat_annotated_final.rds"))
 log_msg(sprintf("  Loaded: %d cells, %d genes (%.1f min)",
                 ncol(sobj), nrow(sobj),
                 as.numeric(difftime(Sys.time(), t_load, units = "mins"))))
