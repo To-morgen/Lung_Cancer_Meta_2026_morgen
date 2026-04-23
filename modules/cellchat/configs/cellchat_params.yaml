@@ -1,0 +1,107 @@
+# modules/cellchat/configs/cellchat_params.yaml
+# ============================================================================
+# CellChat Analysis Parameters
+# Module: stateless — results go to project-level results/scrna/{dataset_id}/09_cellchat/
+# ============================================================================
+
+# ── Input ──
+input:
+  seurat_path: "results/scrna/{dataset_id}/06_annotate/objects/seurat_annotated_final.rds"
+  celltype_col: "celltype_L2"
+  group_col: "group"
+
+# ── Dataset identity (drives output namespace) ──
+# Priority: env var DATASET_ID > config value
+dataset:
+  id: "novogene_llc"
+
+# ── Experimental design (INHERIT from existing config — single source of truth) ──
+design:
+  source: "de_contrasts"
+  contrasts_config: "configs/annotation/de_contrasts.yaml"
+
+  # Only used when source == "inline"
+  inline_groups: []
+  inline_reference: null
+  inline_comparisons: []
+
+# ── Cell filtering ──
+filtering:
+  exclude_L1:
+    - "Artifact"
+  exclude_L2:
+    - "Unresolved mesenchymal"
+  min_cells_per_celltype: 20
+  drop_if_absent_in_any_group: true
+
+# ── CellChat DB ──
+database:
+  species: "mouse"
+  categories:
+    - "Secreted Signaling"
+    - "ECM-Receptor"
+    - "Cell-Cell Contact"
+  run_full_database: false
+
+# ── Inference parameters ──
+inference:
+  type: "triMean"                        # "triMean" | "truncatedMean" | "median"
+  trim: null                             # Only effective when type="truncatedMean"; range [0, 0.5]
+  population.size: true                  # Adjust for cell population size differences
+  population.size_sensitivity: false     # RESERVED: not consumed by current CellChat v2 API
+  nboot: 500                             # Number of bootstrap permutations
+  thresh: 0.05                           # p-value threshold for computeCommunProbPathway
+  seed: 1234
+
+
+# ── Step 03 comparison visualization (optional; defaults in script if missing) ──
+comparison:
+  focus_pathways:
+    - "SPP1"
+    - "MIF"
+    - "CCL"
+    - "CXCL"
+    - "CSF3"
+    - "GALECTIN"
+    - "TNF"
+    - "IFN-II"
+    - "IL6"
+    - "IL10"
+    - "CD86"
+    - "ICAM"
+    - "MHC-I"
+    - "MHC-II"
+    - "PD-L1"
+    - "CD80"
+    - "COMPLEMENT"
+    - "FN1"
+    - "COLLAGEN"
+    - "LAMININ"
+    - "VEGF"
+    - "PDGF"
+    - "WNT"
+    - "NOTCH"
+    - "TGFb"
+    - "BMP"
+    - "EGF"
+    - "GAS"
+
+  # ... existing keys ...
+  bubble_angle_x: 45
+  bubble_remove_isolate: true
+  bubble_chunk_size: 10        # ← NEW: max pathways per panel (null = no split)
+  bubble_font_size: 10         # ← NEW: axis text size
+  bubble_thresh: 0.05          # ← NEW: p-value filter (null = show all)
+
+
+
+# ── Output ──
+output:
+  # Dataset-first layout (consistent with phases 01–08)
+  # Final path: results/scrna/{dataset_id}/09_cellchat/
+  base_dir: "results/scrna/{dataset_id}/09_cellchat"
+  save_config_copy: true
+  save_session_info: true
+  save_cellchat_version: true
+  save_db_subset: true
+  save_qc_tables: true
