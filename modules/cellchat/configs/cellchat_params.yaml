@@ -105,3 +105,47 @@ output:
   save_cellchat_version: true
   save_db_subset: true
   save_qc_tables: true
+
+
+# ============================================================================
+# Deep-dive: per-pathway detailed visualization (04_deep_dive.R)
+# ============================================================================
+deep_dive:
+  # Which pathways to deep-dive. null = reuse comparison.focus_pathways
+  pathways: null
+
+  # Cell type pairs of interest (sender → target)
+  # These drive §4: focused bubble + probability comparison
+  cell_type_pairs:
+    - source: "Twist1+ EMT cells"
+      target: "Immunosuppressive macrophages"
+    - source: "Twist1+ EMT cells"
+      target: "Activated T cells"
+    - source: "Postn+ mesenchymal cells"
+      target: "Immunosuppressive macrophages"
+    - source: "Immunosuppressive macrophages"
+      target: "Activated T cells"
+    - source: "Resident macrophages"
+      target: "Activated T cells"
+    - source: "MHC-II+ macrophages"
+      target: "Activated T cells"
+
+  # Chord / circle plot sizing
+  chord_size: 10            # base size in inches (scales with n_celltypes)
+  circle_size: 10
+
+  # LR contribution
+  contribution_top_n: 20    # max LR pairs to show per pathway
+
+  # Heatmap
+  heatmap_font_size: 9
+  heatmap_color: "Reds"     # "Reds", "Blues", "Greens", "viridis"
+
+  # Focused bubble (§4)
+  pair_bubble_font_size: 10
+  pair_bubble_thresh: 0.05
+
+  # Layout options
+  layouts: ["chord", "circle"]   # which layouts to generate
+  # "hierarchy" requires manual vertex.receiver — omitted by default
+
