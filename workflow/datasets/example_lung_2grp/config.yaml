@@ -1,0 +1,44 @@
+# ============================================================================
+# Example Snakemake config — 2-group lung cancer scRNA dataset
+# R scripts read dataset-level settings through DS_CONFIG.
+# Keep real private paths in configs_private/ or .env.sh.
+# ============================================================================
+
+dataset_id: "EXAMPLE_Lung_scRNA_2grp_v1"
+ds_prefix: "example_lung_2grp"
+species: "mouse"
+
+# Dataset metadata/config. For private datasets, point this to configs_private/.
+ds_config: "configs/datasets/_TEMPLATE_internally_generated_.yaml"
+
+# Optional annotation / downstream analysis configs.
+annotation_config: "configs/annotation/celltype_mapping_template.csv"
+cnv_config: "configs/annotation/cnv_targets_example.yaml"
+de_contrasts_config: "configs/annotation/de_contrasts_example.yaml"
+
+samples:
+  - control_1
+  - control_2
+  - treatment_1
+  - treatment_2
+
+# Phase01/02 expect {cellranger_out}/{sample}/outs/filtered_feature_bc_matrix.
+# Use a relative path through data/ or override in a private config.
+cellranger_out: "data/raw/example_lung_2grp/cellranger_out"
+
+run_phases:
+  phase01_alignment: false
+  phase02_qc: true
+  phase03_normalize: true
+  phase04_integrate: true
+  phase05_cluster: true
+  phase06_annotate: true
+  phase07_cnv: true
+  phase08_de: true
+  phase09_cellchat: true
+
+phase01:
+  output_subdir: "full"
+  cores: 16
+  mem_gb: 64
+  create_bam: false

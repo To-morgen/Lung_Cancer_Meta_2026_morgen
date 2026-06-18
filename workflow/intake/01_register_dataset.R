@@ -335,7 +335,7 @@ if (interactive()) {
   #
   # 注册单个数据集：
   # register_dataset_from_yaml(
-  #   here("configs", "datasets", "VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1.yaml")
+  #   here("configs", "datasets", "EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1.yaml")
   # )
   #
   # 批量注册所有数据集：

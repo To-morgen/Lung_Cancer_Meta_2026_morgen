@@ -241,10 +241,12 @@ l1_levels <- sort(unique(sobj_clean$celltype_L1))
 l1_base_colors <- c(
   "Cycling"          = "#FFD700",
   "Epithelial_normal"= "#2ca02c",
+  "Epi_Normal"       = "#2ca02c",
   "Lymphoid"         = "#1f77b4",
   "Myeloid"          = "#ff7f0e",
   "Stromal"          = "#9467bd",
   "Tumor_putative"   = "#d62728",
+  "Epi_Tumor"        = "#d62728",
   "Unresolved"       = "#7f7f7f"
 )
 for (l in l1_levels) {

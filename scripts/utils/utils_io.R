@@ -8,8 +8,53 @@ suppressPackageStartupMessages({
   library(yaml)
 })
 
+resolve_project_root <- function(start = getwd()) {
+  env_root <- Sys.getenv("PROJECT_ROOT", unset = Sys.getenv("LUNGMETA_ROOT", unset = ""))
+  if (nzchar(env_root)) {
+    return(normalizePath(env_root, winslash = "/", mustWork = FALSE))
+  }
+
+  candidates <- unique(c(
+    normalizePath(start, winslash = "/", mustWork = FALSE),
+    normalizePath(here::here(), winslash = "/", mustWork = FALSE)
+  ))
+
+  is_project_root <- function(path) {
+    file.exists(file.path(path, "Lung_Cancer_Meta_2026.Rproj")) &&
+      dir.exists(file.path(path, "scripts")) &&
+      dir.exists(file.path(path, "configs"))
+  }
+
+  ascend_until_root <- function(path) {
+    current <- path
+    if (file.exists(current) && !dir.exists(current)) {
+      current <- dirname(current)
+    }
+    current <- normalizePath(current, winslash = "/", mustWork = FALSE)
+
+    repeat {
+      if (is_project_root(current)) return(current)
+      parent <- dirname(current)
+      if (identical(parent, current)) break
+      current <- parent
+    }
+    NULL
+  }
+
+  for (candidate in candidates) {
+    root <- ascend_until_root(candidate)
+    if (!is.null(root)) return(root)
+  }
+
+  stop("Could not resolve project root. Set PROJECT_ROOT or run from inside the repository.")
+}
+
+project_path <- function(...) {
+  file.path(resolve_project_root(), ...)
+}
+
 #' Load .env.sh variables into R session
-load_env <- function(env_file = here(".env.sh")) {
+load_env <- function(env_file = project_path(".env.sh")) {
   if (!file.exists(env_file)) stop(".env.sh not found: ", env_file)
   lines <- readLines(env_file)
   lines <- lines[grepl("^export ", lines)]
@@ -80,10 +125,10 @@ load_dataset_config <- function(dataset_id = NULL) {
   if (!nzchar(dataset_id)) stop("Neither DS_CONFIG nor DATASET_ID is set")
 
   # Legacy path: configs_private/datasets/{DATASET_ID}.yaml
-  cfg_path <- here("configs_private", "datasets", paste0(dataset_id, ".yaml"))
+  cfg_path <- project_path("configs_private", "datasets", paste0(dataset_id, ".yaml"))
   if (!file.exists(cfg_path)) {
     # Also try configs/datasets/
-    cfg_path <- here("configs", "datasets", paste0(dataset_id, ".yaml"))
+    cfg_path <- project_path("configs", "datasets", paste0(dataset_id, ".yaml"))
   }
   if (!file.exists(cfg_path)) stop("Config not found for dataset_id: ", dataset_id)
 

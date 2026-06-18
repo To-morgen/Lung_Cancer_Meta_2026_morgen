@@ -22,12 +22,18 @@ source(here("workflow", "scrna", "functions", "io_scrna.R"))
 
 out_base <- scrna_base("08_de")
 plot_dir <- file.path(out_base, "plots")
+enrichment_plot_dir <- file.path(plot_dir, "enrichment")
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(enrichment_plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 cat("\\n")
 cat("==============================================================\\n")
 cat("   Phase 08 Step 3: DE Visualization                          \\n")
 cat("==============================================================\\n\\n")
+
+celltype_display_order <- function(celltype) {
+  ifelse(grepl("^pooled_", celltype), 1L, 0L)
+}
 
 # ---- Load data ----
 combined_file <- file.path(out_base, "deseq2", "all_de_results_combined.csv")
@@ -128,9 +134,15 @@ if (file.exists(summary_file)) {
     )
 
   for (ax in unique(de_long$axis)) {
-    p <- de_long %>%
+    ax_data <- de_long %>%
       filter(axis == ax) %>%
-      ggplot(aes(x = reorder(celltype, abs(count_signed)), y = count_signed, fill = direction)) +
+      mutate(celltype = factor(
+        celltype,
+        levels = unique(celltype[order(celltype_display_order(celltype), celltype)])
+      ))
+
+    p <- ax_data %>%
+      ggplot(aes(x = celltype, y = count_signed, fill = direction)) +
       geom_col() +
       facet_wrap(~contrast, scales = "free_x") +
       scale_fill_manual(values = c("Up" = "#E41A1C", "Down" = "#377EB8")) +
@@ -162,8 +174,14 @@ if (file.exists(focus_file)) {
       )
 
     for (ax in unique(focus$axis)) {
-      p <- focus %>%
+      ax_focus <- focus %>%
         filter(axis == ax) %>%
+        mutate(celltype = factor(
+          celltype,
+          levels = unique(celltype[order(celltype_display_order(celltype), celltype)])
+        ))
+
+      p <- ax_focus %>%
         ggplot(aes(x = contrast, y = pathway_short, size = -log10(padj), color = NES)) +
         geom_point() +
         scale_color_gradient2(low = "#377EB8", mid = "white", high = "#E41A1C", midpoint = 0) +
@@ -175,8 +193,8 @@ if (file.exists(focus_file)) {
         theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
               axis.text.y = element_text(size = 7))
 
-      ggsave(file.path(plot_dir, sprintf("03_enrichment_focus_%s.pdf", ax)), p, width = 16, height = 12)
-      log_msg(sprintf("  Saved: 03_enrichment_focus_%s.pdf", ax))
+      ggsave(file.path(enrichment_plot_dir, sprintf("03_enrichment_focus_%s.pdf", ax)), p, width = 16, height = 12)
+      log_msg(sprintf("  Saved: enrichment/03_enrichment_focus_%s.pdf", ax))
     }
   }
 } else {
@@ -204,7 +222,11 @@ if (file.exists(enr_combined_file)) {
     hm_data <- enr_all %>%
       filter(pathway %in% tumor_hallmark, geneset_collection == "Hallmark") %>%
       mutate(label = paste(celltype, contrast, sep = "\\n")) %>%
-      select(pathway, label, NES, padj)
+      select(pathway, celltype, label, NES, padj) %>%
+      mutate(label = factor(
+        label,
+        levels = unique(label[order(celltype_display_order(celltype), celltype, label)])
+      ))
 
     p <- hm_data %>%
       mutate(
@@ -221,12 +243,13 @@ if (file.exists(enr_combined_file)) {
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
             axis.text.y = element_text(size = 7))
 
-    ggsave(file.path(plot_dir, "04_hallmark_heatmap_tumor.pdf"), p, width = 16, height = 14)
-    log_msg("  Saved: 04_hallmark_heatmap_tumor.pdf")
+    ggsave(file.path(enrichment_plot_dir, "04_hallmark_heatmap_tumor.pdf"), p, width = 16, height = 14)
+    log_msg("  Saved: enrichment/04_hallmark_heatmap_tumor.pdf")
   }
 }
 
 cat("\\n==============================================================\\n")
 cat("   DE Visualization complete                                   \\n")
 cat(sprintf("   Plots: %s\\n", plot_dir))
+cat(sprintf("   Enrichment plots: %s\\n", enrichment_plot_dir))
 cat("==============================================================\\n\\n")

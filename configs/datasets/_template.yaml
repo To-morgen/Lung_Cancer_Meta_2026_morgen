@@ -20,7 +20,7 @@
 #     INT    → internally_curated
 #     ATLAS  → atlas_ready
 #     FREEZE → release_frozen
-#   示例：VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1
+#   示例：EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1
 #         PUB_GEO_LUAD_scRNA_GSE12345_20260101_v1
 #
 # YAML 空值规范：

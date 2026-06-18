@@ -54,10 +54,11 @@ if (length(missing_cells) > 0) {
   sobj@meta.data[missing_cells, "scevan_label"] <- "unknown"
 }
 
-# ---- Confirm Tumor_putative → Tumor ----
+# ---- Confirm tumor-candidate clusters ----
 mapping <- fread(mapping_file)
-tumor_putative <- mapping$cluster[mapping$celltype_L1 == "Tumor_putative"]
-log_msg(sprintf("Tumor_putative clusters to confirm: %s", paste(tumor_putative, collapse = ", ")))
+tumor_candidate_labels <- c("Tumor_putative", "Epi_Tumor")
+tumor_putative <- mapping$cluster[mapping$celltype_L1 %in% tumor_candidate_labels]
+log_msg(sprintf("Tumor-candidate clusters to confirm: %s", paste(tumor_putative, collapse = ", ")))
 
 confirmation <- sobj@meta.data %>%
   filter(seurat_clusters %in% tumor_putative) %>%
@@ -70,18 +71,18 @@ confirmation <- sobj@meta.data %>%
   ) %>%
   arrange(desc(pct_scevan_tumor))
 
-cat("\\n=== SCEVAN Confirmation of Tumor_putative ===\\n")
+cat("\\n=== SCEVAN Confirmation of Tumor Candidates ===\\n")
 print(as.data.frame(confirmation), row.names = FALSE)
 
 confirmed <- confirmation$seurat_clusters[confirmation$pct_scevan_tumor > 50]
 log_msg(sprintf("Confirmed tumor (>50%%): clusters %s", paste(confirmed, collapse = ", ")))
 
 sobj@meta.data$celltype_L1[sobj$seurat_clusters %in% confirmed &
-                             sobj$celltype_L1 == "Tumor_putative"] <- "Tumor"
+                             sobj$celltype_L1 %in% tumor_candidate_labels] <- "Tumor"
 
 remaining <- setdiff(tumor_putative, confirmed)
 if (length(remaining) > 0) {
-  log_msg(sprintf("⚠️  Still Tumor_putative: clusters %s", paste(remaining, collapse = ", ")))
+  log_msg(sprintf("⚠️  Still tumor-candidate: clusters %s", paste(remaining, collapse = ", ")))
 }
 
 # ---- Convenience columns ----

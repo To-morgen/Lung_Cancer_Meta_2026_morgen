@@ -52,8 +52,8 @@ Rscript scripts/02_validate_scevan.R
 CNV 分析完成后，计算出的恶性标签 (Malignant Labels) 需要被“拉回”到主分析流水线中进行细胞类型重注释。
 
 ```bash
-# 返回项目根目录 (Main Project Root)
-cd ~/biohub/projects/Lung_Cancer_Meta_2026_morgen
+# Return to the main project root
+cd /path/to/Lung_Cancer_Meta_2026_morgen
 
 # 执行回流脚本：将模块输出整合至主项目 Seurat 对象
 Rscript workflow/scrna/07_cnv/01_cnv_to_annotation.R

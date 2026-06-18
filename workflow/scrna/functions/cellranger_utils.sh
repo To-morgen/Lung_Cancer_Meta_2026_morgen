@@ -6,13 +6,27 @@
 
 # --- Load project environment ---
 load_project_env() {
-    local env_file="${HOME}/biohub/projects/Lung_Cancer_Meta_2026_morgen/.env.sh"
+    local env_file=""
+    if [ -n "${PROJECT_ROOT:-}" ] && [ -f "${PROJECT_ROOT}/.env.sh" ]; then
+        env_file="${PROJECT_ROOT}/.env.sh"
+    else
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local repo_root
+        repo_root="$(cd "${script_dir}/../../.." && pwd)"
+        if [ -f "${repo_root}/.env.sh" ]; then
+            env_file="${repo_root}/.env.sh"
+        else
+            echo "[ERROR] .env.sh not found. Copy .env.sh.example to .env.sh and edit paths." >&2
+            exit 1
+        fi
+    fi
     if [ ! -f "${env_file}" ]; then
         echo "[ERROR] .env.sh not found: ${env_file}" >&2
         exit 1
     fi
     source "${env_file}"
-    echo "[env] Loaded project environment"
+    echo "[env] Loaded project environment from ${env_file}"
 }
 
 # --- Validate Cell Ranger installation ---

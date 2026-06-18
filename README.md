@@ -1,102 +1,134 @@
-# Lung Cancer Multi-omics Atlas 2026
+# Lung Cancer Meta Pipeline
 
-**Analyst:** morgen  
-**Status:** scRNA-seq Phase 3 complete | Entering downstream analysis  
-**Updated:** 2026-04-07
+A reproducible Snakemake + R pipeline for lung cancer single-cell meta-analysis.
 
----
+This repository is intended to be a public, reusable pipeline asset: it stores code,
+sanitized configuration templates, and documentation. Raw data, large intermediate
+objects, generated results, private handoff notes, and local agent/tooling state are
+intentionally excluded.
 
-## Project Overview
-
-Multi-omics integration of lung cancer datasets focusing on the following tracks:
-
-* **scRNA-seq:** LLC tumor model (GPRIN2-FL / GPRIN2-A1 / mock), 6 samples.
-* **Bulk RNA-seq:** 22 public LUAD cohorts (vendor-curated, harmonization planned).
-
----
-
-## Repository Structure
+## What the pipeline covers
 
 ```text
-.
-├── configs/                 # Configuration files (YAML, CSV)
-│   ├── annotation/          # Cell type mapping, DE contrasts
-│   ├── datasets/            # Dataset metadata (public configs)
-│   ├── params/              # Analysis parameters (QC, annotation, etc.)
-│   └── registry/            # Dataset registry schema
-├── configs_private/         # Private dataset configs (not on GitHub)
-├── data -> HPC symlink      # Raw + processed data (not tracked)
-├── docs/                    # SOPs, setup guides
-├── metadata/                # Registry CSV, onboarding reports
-├── modules/                 # Isolated analysis modules (independent renv)
-│   ├── cnv/                 # SCEVAN / inferCNV (separate dependencies)
-│   └── cellchat/            # CellChat (planned)
-├── results/                 # All analysis outputs (not tracked)
-├── scripts/                 # Project-wide utilities
-│   ├── setup/               # Environment setup
-│   └── utils/               # IO, plotting, registry helpers
-├── workflow/                # Analysis pipelines
-│   ├── scrna/               # scRNA-seq (main pipeline)
-│   ├── bulk/                # Bulk RNA-seq
-│   └── intake/              # Dataset onboarding
-├── renv.lock                # R environment lockfile
-└── .renvignore              # Excludes modules/results from renv scan
+Dataset config
+  -> 01 alignment / count-matrix intake
+  -> 02 QC
+  -> 03 normalization
+  -> 04 integration
+  -> 05 clustering
+  -> 06 annotation
+  -> 07 CNV review
+  -> 08 pseudobulk DE / enrichment
+  -> 09 CellChat communication analysis
 ```
 
----
+The current public milestone is **v0.1**: a public-safe, config-driven scaffold for
+lung cancer scRNA dataset onboarding and downstream analysis.
 
-## scRNA-seq Pipeline Status
+## Repository scope
 
-| Phase | Directory | Status |
-| :--- | :--- | :--- |
-| **01 Alignment** | `workflow/scrna/01_alignment/` | **DONE** |
-| **02 QC** | `workflow/scrna/02_qc/` | **DONE** |
-| **03 Normalize** | `workflow/scrna/03_normalize/` | **DONE** |
-| **04 Integrate** | `workflow/scrna/04_integrate/` | **DONE** |
-| **05 Cluster** | `workflow/scrna/05_cluster/` | **DONE** |
-| **06 Annotate** | `workflow/scrna/06_annotate/` | **DONE** (Final) |
-| **07 CNV** | `modules/cnv/` + `workflow/scrna/07_cnv/` | **DONE** |
-| **08 DE** | `workflow/scrna/08_de/` | **NEXT** |
-| **09 CellChat** | `workflow/scrna/09_cellchat/` | PLANNED |
-| **10 Trajectory** | `workflow/scrna/10_trajectory/` | PLANNED |
-| **11 Advanced** | `workflow/scrna/11_advanced/` | FUTURE |
+Tracked in Git:
 
----
+- reusable R scripts and Snakemake rules
+- public-safe YAML/CSV templates
+- module environment lockfiles
+- setup and onboarding documentation
 
-## Key Design Decisions
+Not tracked in Git:
 
-1.  **Module Isolation:** Large-scale dependencies like SCEVAN/inferCNV are isolated in `modules/cnv/` with an independent `renv` to prevent dependency hell.
-2.  **Adaptive QC:** Implemented **MAD-based QC** (n_mad=3) per sample, utilizing log space for count metrics to account for biological heterogeneity.
-3.  **Config-Driven Architecture:** All gene lists, thresholds, and parameters are externalized in **YAML** files — zero hardcoded biological assumptions in the core scripts.
-4.  **Iterative Annotation:** Workflow follows an `06_annotate` → `07_cnv` → `06_annotate` loop, using CNV evidence to refine cluster identity.
-5.  **Data Integrity:** `seurat_annotated_final.rds` serves as the single "Source of Truth" for all downstream visualization and reporting.
+- raw FASTQ/BAM/count matrices
+- Seurat, AnnData, inferCNV, CellChat, or other large objects
+- generated plots, reports, logs, and Snakemake runtime state
+- private dataset configs, local notes, handoff files, and machine-specific paths
 
----
+## Layout
 
-## Environment & Execution
+```text
+configs/
+  annotation/          # annotation maps, CNV target templates, DE contrast templates
+  datasets/            # dataset metadata templates and public dataset configs
+  params/              # shared analysis parameters
+modules/
+  cnv/                 # SCEVAN / inferCNV scripts in an isolated renv
+  cellchat/            # CellChat scripts in an isolated renv
+workflow/
+  datasets/            # per-dataset Snakemake entry points
+  scrna/               # phase-level R scripts
+  snakemake/rules/     # reusable Snakemake rules
+docs/                  # public setup and onboarding docs
+```
 
-* **R Runtime:** `Rscript` via Terminal (Ubuntu HPC).
-* **Package Management:** `renv` for reproducible environment locking.
-* **Execution Pattern:** `Rscript -e '...'` or direct script execution.
-* **Verification:** Visual inspection of plots/results via Cursor.
-
----
-
-## Quick Start
+## Quick start
 
 ```bash
-# 1. Clone the repository
+# Clone
 git clone <repo_url>
 cd Lung_Cancer_Meta_2026_morgen
 
-# 2. Establish data link to HPC storage
-ln -s /path/to/Lung_Cancer_2026 data
+# Copy and edit local environment hints
+cp .env.sh.example .env.sh
 
-# 3. Restore the R environment
+# Restore the main R environment
 Rscript -e 'renv::restore()'
 
-# 4. Verify environment status
-Rscript -e 'renv::status()'
+# Restore module environments when needed
+(cd modules/cnv && Rscript -e 'renv::restore()')
+(cd modules/cellchat && Rscript -e 'renv::restore()')
 ```
 
----
+## Run a dataset workflow
+
+Each dataset workflow has its own `workflow/datasets/<dataset>/Snakefile` and
+`config.yaml`. Start with a dry-run.
+
+```bash
+snakemake -s workflow/datasets/example_lung_2grp/Snakefile -n --cores 1
+```
+
+For a new private dataset, create local files from the templates and keep them out
+of Git:
+
+```bash
+cp configs/datasets/_TEMPLATE_internally_generated_.yaml \
+  configs_private/datasets/<dataset_id>.yaml
+
+cp workflow/datasets/example_lung_2grp/config.yaml \
+  workflow/datasets/<your_dataset>/config.yaml
+```
+
+Use relative paths through `data/` or placeholders in public configs. Put real raw
+data paths, vendor delivery paths, and machine-specific settings in `configs_private/`
+or `.env.sh`.
+
+## Public v0.1 focus
+
+Milestone v0.1 focuses on the public pipeline surface:
+
+- dataset-driven Snakemake orchestration
+- manual gate rules for review checkpoints
+- CNV module integration with SCEVAN/inferCNV scoring
+- pseudobulk DE configuration
+- CellChat prepare/run/compare/deep-dive/summary scripts
+- public-safe ignore rules and setup docs
+
+## Design principles
+
+1. **Config-driven analysis** — dataset, contrast, threshold, and path choices live in YAML/CSV files.
+2. **Code-data separation** — Git stores pipeline logic; data and generated outputs live outside Git.
+3. **Module isolation** — dependency-heavy tools such as CNV and CellChat use module-local renv environments.
+4. **Manual gates for biological review** — annotation and downstream interpretation require explicit review checkpoints.
+5. **Public/private separation** — public code is reusable; private analysis notes and unpublished results stay local/private.
+
+## Documentation
+
+- `docs/pipeline_overview.md` — phase map, repository contracts, and v0.1 scope
+- `docs/dataset_onboarding.md` — public-safe process for adding new datasets
+- `docs/SETUP.md` — setup, storage policy, and execution conventions
+- `docs/SOP_DATASET_ONBOARDING.md` — dataset onboarding lifecycle
+- `configs/datasets/_template.yaml` — public dataset metadata template
+- `configs/datasets/_TEMPLATE_internally_generated_.yaml` — private dataset config template
+
+## License and citation
+
+This repository is under active development. Add a project license and citation
+file before relying on it as a stable external dependency.

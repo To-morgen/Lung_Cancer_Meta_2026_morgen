@@ -25,6 +25,14 @@ module_root <- here::here()
 proj_root   <- Sys.getenv("LUNGMETA_ROOT")
 if (proj_root == "") proj_root <- normalizePath(file.path(module_root, "..", ".."))
 
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) y else x
+}
+
+path_from_root <- function(path) {
+  if (grepl("^/", path)) path else file.path(proj_root, path)
+}
+
 cat("\n")
 cat("╔══════════════════════════════════════════════════╗\n")
 cat("║   03: SCEVAN Artifact Recovery (Priority-based)  ║\n")
@@ -35,21 +43,45 @@ cat("╚════════════════════════
 # 1. Config
 # ============================================================================
 
-cfg <- yaml::read_yaml(file.path(module_root, "configs", "cnv_params.yaml"))
+args <- commandArgs(trailingOnly = TRUE)
+cfg_path <- if (length(args) >= 1 && nzchar(args[1])) {
+  args[1]
+} else if (nzchar(Sys.getenv("CNV_CONFIG", unset = ""))) {
+  Sys.getenv("CNV_CONFIG")
+} else {
+  file.path(module_root, "configs", "cnv_params.yaml")
+}
+if (!file.exists(cfg_path)) stop("Config not found: ", cfg_path)
+cfg <- yaml::read_yaml(cfg_path)
 
-seurat_path <- file.path(proj_root, cfg$input$seurat_object)
-cluster_col <- if (!is.null(cfg$input$cluster_column)) {
-                 cfg$input$cluster_column
-               } else {
-                 "seurat_clusters"
-               }
+seurat_path <- path_from_root(cfg$input$seurat_object)
+cluster_col <- cfg$input$cluster_column %||% "seurat_clusters"
 ref_clusters <- as.character(cfg$scevan$reference_clusters)
 
-# Output dirs
-scevan_out <- file.path(proj_root, cfg$output$main_results, "scevan")
-report_out <- file.path(proj_root, cfg$output$main_results, "reports")
-plot_out   <- file.path(proj_root, cfg$output$main_results, "plots")
-for (d in c(scevan_out, report_out, plot_out)) {
+scevan_out <- if (!is.null(cfg$output$scevan)) {
+  path_from_root(cfg$output$scevan)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "scevan")
+}
+report_out <- if (!is.null(cfg$output$reports)) {
+  path_from_root(cfg$output$reports)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "reports")
+}
+plot_out <- if (!is.null(cfg$output$plots)) {
+  path_from_root(cfg$output$plots)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "plots")
+}
+local_out <- Sys.getenv("CNV_LOCAL_SCEVAN_DIR", unset = "")
+if (local_out == "") {
+  local_out <- if (!is.null(cfg$output$module_scevan)) {
+    path_from_root(cfg$output$module_scevan)
+  } else {
+    file.path(module_root, cfg$output$module_results %||% "results", "scevan")
+  }
+}
+for (d in c(scevan_out, report_out, plot_out, local_out)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -72,10 +104,17 @@ cat(sprintf("  %d cells, %d genes\n", ncol(sobj), nrow(sobj)))
 # ============================================================================
 
 # Priority: Subclones file (has results.com)
-subclone_path <- file.path(module_root, "results", "scevan", "output",
-                           "LLC_tumor_CNAmtxSubclones.RData")
-base_path     <- file.path(module_root, "results", "scevan", "output",
-                           "LLC_tumor_CNAmtx.RData")
+scevan_sample <- cfg$scevan$sample_name %||% cfg$dataset_id %||% "LLC_tumor"
+subclone_path <- file.path(local_out, sprintf("%s_CNAmtxSubclones.RData", scevan_sample))
+base_path     <- file.path(local_out, sprintf("%s_CNAmtx.RData", scevan_sample))
+if (!file.exists(subclone_path)) {
+  candidates <- list.files(local_out, pattern = "CNAmtxSubclones\\.RData$", full.names = TRUE, recursive = TRUE)
+  if (length(candidates) > 0) subclone_path <- candidates[1]
+}
+if (!file.exists(base_path)) {
+  candidates <- list.files(local_out, pattern = "CNAmtx\\.RData$", full.names = TRUE, recursive = TRUE)
+  if (length(candidates) > 0) base_path <- candidates[1]
+}
 
 if (!file.exists(subclone_path)) {
   stop("CRITICAL: LLC_tumor_CNAmtxSubclones.RData not found at: ", subclone_path)
@@ -300,11 +339,17 @@ cat("\nAdding labels to Seurat...\n")
 meta_add <- data.frame(row.names = label_df$barcode)
 meta_add$scevan_call <- label_df$scevan_call
 meta_add$scevan_is_tumor <- label_df$is_tumor
+meta_add$scevan_label <- ifelse(label_df$is_tumor, "tumor", "non_tumor")
+meta_add$scevan_source <- "recovery"
+meta_add$scevan_subclone <- NA_character_
 
 # Add subclone columns if present
 for (sc in subcl_cols) {
   if (sc %in% colnames(label_df)) {
     meta_add[[paste0("scevan_", sc)]] <- label_df[[sc]]
+    if (grepl("subclone", sc, ignore.case = TRUE)) {
+      meta_add$scevan_subclone <- as.character(label_df[[sc]])
+    }
   }
 }
 
@@ -383,7 +428,7 @@ tryCatch({
 
 run_note <- data.table(
   timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-  source_file = "LLC_tumor_CNAmtxSubclones.RData",
+  source_file = basename(subclone_path),
   primary_source = "results.com",
   n_tumor_assigned = n_assigned,
   n_tumor_unassigned = n_unassigned,

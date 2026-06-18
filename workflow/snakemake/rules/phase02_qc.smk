@@ -1,11 +1,15 @@
 rule phase02_qc:
     """Phase 02: SoupX → Create Seurat → MAD QC → Doublet Removal → Viz"""
     input:
-        expand(
-            os.path.join(config["cellranger_out"], "{sample}", "outs",
-                         "filtered_feature_bc_matrix"),
-            sample=SAMPLES
-        ) if "cellranger_out" in config and config["cellranger_out"] else []
+        [os.path.join(RESULTS, "01_alignment", ".phase01_done")]
+        if config.get("run_phases", {}).get("phase01_alignment", False)
+        else (
+            expand(
+                os.path.join(config["cellranger_out"], "{sample}", "outs",
+                             "filtered_feature_bc_matrix"),
+                sample=SAMPLES
+            ) if "cellranger_out" in config and config["cellranger_out"] else []
+        )
     output:
         sentinel = os.path.join(RESULTS, "02_qc", ".phase02_done")
     params:

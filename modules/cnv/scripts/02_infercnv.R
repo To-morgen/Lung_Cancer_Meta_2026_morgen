@@ -1,225 +1,192 @@
 #!/usr/bin/env Rscript
 # ============================================================================
-# 02_infercnv.R — inferCNV: HMM-based CNV inference + publication-grade heatmap
-#
-# Environment: modules/cnv/ (独立 renv)
-# Input:  主项目 annotated Seurat object
-# Output: CNV heatmap + HMM predictions → results/scrna/10_cnv/infercnv/
-#
-# Usage:
-#   cd modules/cnv
-#   Rscript scripts/02_infercnv.R
+# 02_infercnv.R — Run inferCNV from prepared inputs
 # ============================================================================
 
 suppressPackageStartupMessages({
-  library(here)
-  library(Seurat)
   library(infercnv)
+  library(Matrix)
   library(data.table)
   library(yaml)
 })
 
-# ============================================================================
-# 1. Paths & Config
-# ============================================================================
-
-proj_root <- Sys.getenv("LUNGMETA_ROOT")
-if (proj_root == "") {
-  proj_root <- normalizePath(file.path(here::here(), "..", ".."))
-  cat(sprintf("LUNGMETA_ROOT inferred: %s\n", proj_root))
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) y else x
 }
 
-module_root <- here::here()
+as_single_integer <- function(x, default = NA_integer_) {
+  if (is.null(x) || length(x) == 0) return(default)
+  value <- as.integer(x[[1]])
+  if (is.na(value)) default else value
+}
+
+as_single_logical <- function(x, default = FALSE) {
+  if (is.null(x) || length(x) == 0) return(default)
+  value <- as.logical(x[[1]])
+  if (is.na(value)) default else value
+}
+
+merge_lists <- function(defaults, overrides) {
+  if (is.null(defaults)) defaults <- list()
+  if (is.null(overrides)) return(defaults)
+  for (name in names(overrides)) defaults[[name]] <- overrides[[name]]
+  defaults
+}
+
+proj_root <- Sys.getenv("LUNGMETA_ROOT", unset = "")
+if (!nzchar(proj_root)) {
+  cwd <- normalizePath(getwd())
+  if (dir.exists(file.path(cwd, "modules", "cnv"))) {
+    proj_root <- cwd
+  } else {
+    proj_root <- normalizePath(file.path(cwd, "..", ".."))
+  }
+}
+module_root <- file.path(proj_root, "modules", "cnv")
+
+path_from_root <- function(path) {
+  if (is.null(path) || !nzchar(path)) return(path)
+  if (grepl("^/", path)) path else file.path(proj_root, path)
+}
 
 cat("\n")
 cat("╔══════════════════════════════════════════════════╗\n")
-cat("║   CNV Module: inferCNV HMM-based Inference       ║\n")
+cat("║   CNV Module: inferCNV Inference                 ║\n")
 cat(sprintf("║   Time: %s            ║\n", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
 cat("╚══════════════════════════════════════════════════╝\n\n")
 
-cfg <- yaml::read_yaml(file.path(module_root, "configs", "cnv_params.yaml"))
-icfg <- cfg$infercnv
-
-cat(sprintf("Analysis mode: %s\n", icfg$analysis_mode))
-cat(sprintf("HMM type:      %s\n", icfg$HMM_type))
-cat(sprintf("Threads:       %d\n", icfg$num_threads))
-
-# Output dirs
-local_out <- file.path(module_root, "results", "infercnv")
-main_out  <- file.path(proj_root, cfg$output$main_results, "infercnv")
-plot_out  <- file.path(proj_root, cfg$output$main_results, "plots")
-report_out <- file.path(proj_root, cfg$output$main_results, "reports")
-
-for (d in c(local_out, main_out, plot_out, report_out)) {
-  dir.create(d, recursive = TRUE, showWarnings = FALSE)
+args <- commandArgs(trailingOnly = TRUE)
+cfg_path <- if (length(args) >= 1 && nzchar(args[1])) {
+  args[1]
+} else if (nzchar(Sys.getenv("CNV_CONFIG", unset = ""))) {
+  Sys.getenv("CNV_CONFIG")
+} else {
+  file.path(module_root, "configs", "cnv_params.yaml")
 }
+if (!file.exists(cfg_path)) stop("Config not found: ", cfg_path)
 
-# ============================================================================
-# 2. Load Seurat
-# ============================================================================
+cfg <- yaml::read_yaml(cfg_path)
+dataset_id <- cfg$dataset_id %||% "unspecified"
+shared_path <- file.path(module_root, "configs", "cnv_params_shared.yaml")
+shared_cfg <- if (file.exists(shared_path)) yaml::read_yaml(shared_path) else list(infercnv = list())
 
-input_path <- file.path(proj_root, cfg$input$seurat_object)
-cat(sprintf("Loading: %s\n", basename(input_path)))
-sobj <- readRDS(input_path)
-
-tryCatch(sobj <- JoinLayers(sobj),
-         error = function(e) cat("  JoinLayers skipped (v4 object)\n"))
-
-cat(sprintf("  %d cells, %d genes\n", ncol(sobj), nrow(sobj)))
-
-# ============================================================================
-# 3. Prepare Cell Annotations
-# ============================================================================
-
-# inferCNV needs a file: barcode \t celltype
-# Use cluster numbers as cell type labels (most robust at this stage)
-ref_clusters <- as.character(icfg$ref_clusters)
-
-cell_anno <- data.frame(
-  barcode  = colnames(sobj),
-  celltype = paste0("cluster_", sobj$seurat_clusters),
-  stringsAsFactors = FALSE
+run_cfg <- merge_lists(shared_cfg$infercnv, cfg$infercnv)
+selection_keys <- c(
+  "enabled", "strategy", "reference_strategy", "reference_clusters",
+  "reference_l2_include", "observation_clusters", "max_cells_per_reference_l2",
+  "max_cells_per_observation_cluster", "gene_order_file", "random_seed", "container"
 )
-rownames(cell_anno) <- cell_anno$barcode
+run_cfg[intersect(names(run_cfg), selection_keys)] <- NULL
 
-# Write annotation file
-anno_file <- file.path(local_out, "cell_annotations.tsv")
-write.table(cell_anno[, "celltype", drop = FALSE],
-            file = anno_file, sep = "\t",
-            quote = FALSE, col.names = FALSE)
-
-cat(sprintf("Cell annotations: %d cells\n", nrow(cell_anno)))
-
-# Reference group names (cluster-based)
-ref_group_names <- paste0("cluster_", ref_clusters)
-cat(sprintf("Reference groups: %s\n", paste(ref_group_names, collapse = ", ")))
-
-# ============================================================================
-# 4. Gene Order File
-# ============================================================================
-
-gene_order_path <- file.path(module_root, icfg$gene_order_file)
-if (!file.exists(gene_order_path)) {
-  stop("Gene order file not found: ", gene_order_path,
-       "\nRun the biomaRt download step first.")
+threads_env <- Sys.getenv("INFERCNV_THREADS", unset = "")
+if (nzchar(threads_env)) {
+  run_cfg$num_threads <- as_single_integer(threads_env)
 }
-cat(sprintf("Gene order file: %s\n", basename(gene_order_path)))
+if (is.null(run_cfg$num_threads) || is.na(as.integer(run_cfg$num_threads)) || as.integer(run_cfg$num_threads) < 1) {
+  run_cfg$num_threads <- 1L
+}
 
-# ============================================================================
-# 5. Extract Counts
-# ============================================================================
+input_dir <- path_from_root(cfg$output$infercnv_inputs %||% file.path(cfg$output$base, "infercnv", "inputs"))
+output_dir <- path_from_root(cfg$output$infercnv_run %||% file.path(cfg$output$base, "infercnv", "run"))
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-counts <- GetAssayData(sobj, assay = "RNA", layer = "counts")
-cat(sprintf("Count matrix: %d genes × %d cells (sparse: %s)\n",
-            nrow(counts), ncol(counts), inherits(counts, "sparseMatrix")))
+required_inputs <- file.path(input_dir, c(
+  "counts_sparse.rds",
+  "cell_annotations.tsv",
+  "reference_groups.txt",
+  "dataset_info.yaml"
+))
+missing_inputs <- required_inputs[!file.exists(required_inputs)]
+if (length(missing_inputs) > 0) {
+  stop("Missing prepared inferCNV input(s):\n", paste(missing_inputs, collapse = "\n"))
+}
 
-# ============================================================================
-# 6. Create inferCNV Object
-# ============================================================================
+ds_info <- yaml::read_yaml(file.path(input_dir, "dataset_info.yaml"))
+gene_order <- ds_info$gene_order_file
+if (is.null(gene_order) || !file.exists(gene_order)) stop("Gene order not found from dataset_info.yaml: ", gene_order)
+
+cat(sprintf("Config:     %s\n", cfg_path))
+cat(sprintf("Dataset:    %s\n", dataset_id))
+cat(sprintf("Input dir:  %s\n", input_dir))
+cat(sprintf("Output dir: %s\n", output_dir))
+cat(sprintf("Gene order: %s\n", gene_order))
+cat(sprintf("Threads:    %d\n", as.integer(run_cfg$num_threads)))
+cat(sprintf("Mode:       %s\n", run_cfg$analysis_mode %||% "default"))
+cat(sprintf("HMM:        %s\n", as.character(run_cfg$HMM %||% FALSE)))
+
+cat("\nLoading prepared inputs...\n")
+counts <- readRDS(file.path(input_dir, "counts_sparse.rds"))
+ref_groups <- readLines(file.path(input_dir, "reference_groups.txt"))
+annot_path <- file.path(input_dir, "cell_annotations.tsv")
+cat(sprintf("  Counts: %d genes x %d cells\n", nrow(counts), ncol(counts)))
+cat(sprintf("  Reference groups: %s\n", paste(ref_groups, collapse = ", ")))
 
 cat("\nCreating inferCNV object...\n")
-
 infercnv_obj <- CreateInfercnvObject(
   raw_counts_matrix = counts,
-  annotations_file  = anno_file,
-  gene_order_file   = gene_order_path,
-  ref_group_names   = ref_group_names
+  annotations_file = annot_path,
+  gene_order_file = gene_order,
+  ref_group_names = ref_groups
 )
+cat(sprintf("  inferCNV object: %d genes x %d cells\n", nrow(infercnv_obj@expr.data), ncol(infercnv_obj@expr.data)))
 
-cat(sprintf("  inferCNV object: %d genes × %d cells\n",
-            nrow(infercnv_obj@expr.data), ncol(infercnv_obj@expr.data)))
-
-# ============================================================================
-# 7. Run inferCNV
-# ============================================================================
-
-cat("\n")
-cat("══════════════════════════════════════════════════\n")
-cat("   Running inferCNV\n")
-cat(sprintf("   Start: %s\n", format(Sys.time(), "%H:%M:%S")))
-cat("   ⚠️  This takes 30-120 minutes for 60k cells\n")
+cat("\n══════════════════════════════════════════════════\n")
+cat(sprintf("   Running inferCNV [%s]\n", format(Sys.time(), "%H:%M:%S")))
 cat("══════════════════════════════════════════════════\n\n")
 
 t0 <- Sys.time()
 
 infercnv_obj <- infercnv::run(
   infercnv_obj,
-  cutoff              = icfg$cutoff,
-  out_dir             = local_out,
-  cluster_by_groups   = isTRUE(icfg$cluster_by_groups),
-  denoise             = isTRUE(icfg$denoise),
-  noise_logFC         = icfg$noise_filter,
-  analysis_mode       = icfg$analysis_mode,
-  HMM_type            = icfg$HMM_type,
-  num_threads         = icfg$num_threads,
-  no_prelim_plot      = FALSE,
-  no_plot             = FALSE,
-  resume_mode         = TRUE    # 如果中断可以续跑
+  min_cells_per_gene = run_cfg$min_cells_per_gene %||% NULL,
+  cutoff = run_cfg$cutoff %||% 0.1,
+  out_dir = output_dir,
+  cluster_by_groups = as_single_logical(run_cfg$cluster_by_groups, TRUE),
+  analysis_mode = run_cfg$analysis_mode %||% "subclusters",
+  tumor_subcluster_partition_method = run_cfg$tumor_subcluster_partition_method %||% "leiden",
+  tumor_subcluster_pval = run_cfg$tumor_subcluster_pval %||% 0.1,
+  k_nn = run_cfg$k_nn %||% 20,
+  denoise = as_single_logical(run_cfg$denoise, TRUE),
+  noise_filter = run_cfg$noise_filter %||% 0.05,
+  sd_amplifier = run_cfg$sd_amplifier %||% 1.0,
+  HMM = as_single_logical(run_cfg$HMM, FALSE),
+  HMM_type = run_cfg$HMM_type %||% "i6",
+  BayesMaxPNormal = run_cfg$BayesMaxPNormal %||% 0.5,
+  reassignCNVs = as_single_logical(run_cfg$reassignCNVs, TRUE),
+  num_threads = as.integer(run_cfg$num_threads),
+  output_format = run_cfg$output_format %||% "png",
+  plot_steps = as_single_logical(run_cfg$plot_steps, FALSE),
+  no_prelim_plot = as_single_logical(run_cfg$no_prelim_plot, FALSE),
+  resume_mode = as_single_logical(run_cfg$resume_mode, TRUE),
+  png_res = run_cfg$png_res %||% 300,
+  no_plot = as_single_logical(run_cfg$no_plot, FALSE)
 )
 
 elapsed <- round(difftime(Sys.time(), t0, units = "mins"), 1)
-cat(sprintf("\n✅ inferCNV completed in %.1f min\n", elapsed))
+cat(sprintf("\ninferCNV completed in %.1f min\n", elapsed))
 
-# ============================================================================
-# 8. Save Results
-# ============================================================================
-
-cat("\n========== Saving outputs ==========\n")
-
-# Save inferCNV object
-saveRDS(infercnv_obj, file.path(local_out, "infercnv_obj_final.rds"))
-saveRDS(infercnv_obj, file.path(main_out, "infercnv_obj_final.rds"))
-
-# Copy plots to main project
-infercnv_plots <- list.files(local_out, pattern = "\\.(pdf|png)$",
-                              full.names = TRUE, recursive = FALSE)
-if (length(infercnv_plots) > 0) {
-  # Rename with prefix for clarity
-  new_names <- file.path(plot_out, paste0("infercnv_", basename(infercnv_plots)))
-  file.copy(infercnv_plots, new_names, overwrite = TRUE)
-  cat(sprintf("  %d plot(s) → %s\n", length(infercnv_plots), plot_out))
-}
-
-# ============================================================================
-# 9. Extract CNV Scores Per Cell
-# ============================================================================
-
-cat("\nExtracting per-cell CNV scores...\n")
-
-# inferCNV HMM predictions
-hmm_files <- list.files(local_out, pattern = "HMM_CNV_predictions",
-                         full.names = TRUE, recursive = TRUE)
-
-if (length(hmm_files) > 0) {
-  cat(sprintf("  Found %d HMM prediction file(s)\n", length(hmm_files)))
-  for (f in hmm_files) {
-    fname <- basename(f)
-    file.copy(f, file.path(main_out, fname), overwrite = TRUE)
-    file.copy(f, file.path(report_out, fname), overwrite = TRUE)
-  }
-}
-
-# CNV score matrix (if available)
-cnv_score_files <- list.files(local_out, pattern = "expr\\.(dat|infercnv)",
-                               full.names = TRUE)
-if (length(cnv_score_files) > 0) {
-  cat(sprintf("  Found CNV expression files: %s\n",
-              paste(basename(cnv_score_files), collapse = ", ")))
-}
-
-# ============================================================================
-# 10. Summary
-# ============================================================================
+saveRDS(infercnv_obj, file.path(output_dir, "infercnv_obj_final.rds"))
+yaml::write_yaml(list(
+  dataset_id = dataset_id,
+  source_config = normalizePath(cfg_path),
+  input_dir = normalizePath(input_dir),
+  output_dir = normalizePath(output_dir),
+  gene_order_file = normalizePath(gene_order),
+  reference_groups = ref_groups,
+  n_genes = nrow(infercnv_obj@expr.data),
+  n_cells = ncol(infercnv_obj@expr.data),
+  elapsed_minutes = as.numeric(elapsed),
+  num_threads = as.integer(run_cfg$num_threads),
+  analysis_mode = run_cfg$analysis_mode %||% "subclusters",
+  HMM = as_single_logical(run_cfg$HMM, FALSE),
+  HMM_type = run_cfg$HMM_type %||% "i6"
+), file.path(output_dir, "run_summary.yaml"))
 
 cat("\n")
 cat("╔══════════════════════════════════════════════════════╗\n")
 cat("║                inferCNV Complete                     ║\n")
-cat(sprintf("║  Elapsed:  %.1f min                                  ║\n", elapsed))
-cat(sprintf("║  Cells:    %d                                       ║\n", ncol(sobj)))
-cat("╠══════════════════════════════════════════════════════╣\n")
-cat(sprintf("║  Module:   modules/cnv/results/infercnv/            ║\n"))
-cat(sprintf("║  Main:     results/scrna/10_cnv/infercnv/           ║\n"))
-cat(sprintf("║  Plots:    results/scrna/10_cnv/plots/              ║\n"))
+cat(sprintf("║  Elapsed: %.1f min\n", elapsed))
+cat(sprintf("║  Output:  %s\n", output_dir))
 cat("╚══════════════════════════════════════════════════════╝\n")
 
 gc()

@@ -1,0 +1,33 @@
+# ============================================================================
+# cnv_params_shared.yaml — inferCNV Shared Parameters (dataset-independent)
+# ============================================================================
+
+infercnv:
+  container: "modules/cnv/containers/infercnv-1.21.0.sif"
+  min_cells_per_gene: 3
+  cutoff: 0.1
+  cluster_by_groups: true
+  analysis_mode: "subclusters"
+  tumor_subcluster_partition_method: "leiden"
+  tumor_subcluster_pval: 0.1
+  k_nn: 20
+  denoise: true
+  noise_filter: 0.05
+  sd_amplifier: 1.0
+  HMM: false
+  HMM_type: "i6"
+  BayesMaxPNormal: 0.5
+  reassignCNVs: true
+  num_threads: 16
+  output_format: "png"
+  plot_steps: false
+  resume_mode: true
+  no_prelim_plot: false
+  png_res: 300
+  no_plot: false
+  cnv_score_threshold: 0.05
+
+consensus:
+  methods: ["scevan", "infercnv"]
+  agreement_rule: "any"
+  min_cnv_fraction: 0.6

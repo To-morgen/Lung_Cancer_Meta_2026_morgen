@@ -153,6 +153,29 @@ fastq_subset/
 
 # Editor/IDE
 .kilo/
+.cursor/
+.trellis/
+
+# Local vendored tools
+tools/
+
+# Local notes / handoff drafts
+Notes/
+docs/HANDOFF_*.md
+
+# Local analysis caches
+workflow/datasets/**/.snakemake/
 
 # Backup files
 *.bak_*
+
+# GBM-RHEB module data/results
+modules/gbm_rheb_mtc/data
+modules/gbm_rheb_mtc/results/
+modules/gbm_rheb_mtc/logs/
+modules/gbm_rheb_mtc/figures/
+modules/gbm_rheb_mtc/scratch/
+modules/gbm_rheb_mtc/renv/
+
+# Module-local containers
+modules/cnv/containers/

@@ -21,7 +21,7 @@ bash workflow/upstream/03_cellranger_subset_test.sh \
 
 # Full run (all samples)
 nohup bash workflow/upstream/01_cellranger_count.sh \
-    --dataset INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1 \
+    --dataset EXAMPLE_Lung_scRNA_2grp_v1 \
     --auto --cores 32 --mem 128 \
     > logs/cellranger_full.log 2>&1 &
 

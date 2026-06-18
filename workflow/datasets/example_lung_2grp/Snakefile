@@ -1,0 +1,94 @@
+"""
+Snakefile — example 2-group lung cancer scRNA workflow
+"""
+import os
+
+SNAKEFILE_DIR = workflow.basedir
+PROJECT_ROOT  = os.path.normpath(os.path.join(SNAKEFILE_DIR, "..", "..", ".."))
+
+configfile: workflow.source_path("config.yaml")
+
+DS_PREFIX = config["ds_prefix"]
+RESULTS   = os.path.join(PROJECT_ROOT, "results", "scrna", DS_PREFIX)
+LOGS      = os.path.join(PROJECT_ROOT, "logs", "snakemake", DS_PREFIX)
+SAMPLES   = config["samples"]
+
+ENV_VARS = (
+    f'DS_CONFIG="{os.path.join(PROJECT_ROOT, config["ds_config"])}" '
+    f'DS_PREFIX="{DS_PREFIX}"'
+)
+DE_CONTRASTS_CONFIG = os.path.join(PROJECT_ROOT, config["de_contrasts_config"]) if config.get("de_contrasts_config") else ""
+
+RSCRIPT = "/usr/bin/Rscript"
+
+include: "../../snakemake/rules/gates.smk"
+include: "../../snakemake/rules/phase01_alignment.smk"
+include: "../../snakemake/rules/phase02_qc.smk"
+include: "../../snakemake/rules/phase03_normalize.smk"
+include: "../../snakemake/rules/phase04_integrate.smk"
+include: "../../snakemake/rules/phase05_cluster.smk"
+include: "../../snakemake/rules/phase06_annotate.smk"
+include: "../../snakemake/rules/phase07_cnv.smk"
+include: "../../snakemake/rules/phase08_de.smk"
+include: "../../snakemake/rules/phase09_cellchat.smk"
+
+rule all:
+    input:
+        os.path.join(RESULTS, "08_de", ".phase08_done")
+
+rule phase01_done:
+    input: os.path.join(RESULTS, "01_alignment", ".phase01_done")
+
+rule phase02_done:
+    input: os.path.join(RESULTS, "02_qc", ".phase02_done")
+
+rule phase03_done:
+    input: os.path.join(RESULTS, "03_normalize", ".phase03_done")
+
+rule phase04_done:
+    input: os.path.join(RESULTS, "04_integrate", ".phase04_done")
+
+rule phase05_done:
+    input: os.path.join(RESULTS, "05_cluster", ".phase05_done")
+
+rule phase06_auto_done:
+    input: os.path.join(RESULTS, "06_annotate", ".phase06_auto_done")
+
+rule phase06_manual_done:
+    input: os.path.join(RESULTS, "06_annotate", ".phase06_manual_done")
+
+rule phase06_done:
+    input: os.path.join(RESULTS, "06_annotate", ".phase06_manual_done")
+
+rule phase07_scevan_done:
+    input: os.path.join(RESULTS, "07_cnv", ".phase07_scevan_done")
+
+rule phase07_infercnv_prep_done:
+    input: os.path.join(RESULTS, "07_cnv", ".phase07_infercnv_prep_done")
+
+rule phase07_infercnv_done:
+    input: os.path.join(RESULTS, "07_cnv", ".phase07_infercnv_done")
+
+rule phase07_infercnv_score_done:
+    input: os.path.join(RESULTS, "07_cnv", ".phase07_infercnv_score_done")
+
+rule phase08_done:
+    input: os.path.join(RESULTS, "08_de", ".phase08_done")
+
+rule phase09_cellchat_prepare_done:
+    input: os.path.join(RESULTS, "09_cellchat", ".phase09_cellchat_prepare_done")
+
+rule phase09_cellchat_run_done:
+    input: os.path.join(RESULTS, "09_cellchat", ".phase09_cellchat_run_done")
+
+rule phase09_cellchat_compare_done:
+    input: os.path.join(RESULTS, "09_cellchat", ".phase09_cellchat_compare_done")
+
+rule phase09_cellchat_deep_dive_done:
+    input: os.path.join(RESULTS, "09_cellchat", ".phase09_cellchat_deep_dive_done")
+
+rule phase09_cellchat_summary_done:
+    input: os.path.join(RESULTS, "09_cellchat", ".phase09_cellchat_summary_done")
+
+rule phase09_cellchat_done:
+    input: os.path.join(RESULTS, "09_cellchat", ".phase09_cellchat_compare_done")

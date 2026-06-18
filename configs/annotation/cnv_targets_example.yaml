@@ -1,0 +1,48 @@
+# ============================================================================
+# Example Phase07 CNV target config
+# ============================================================================
+
+dataset_id: "example_lung_2grp"
+species: "mouse"
+
+input:
+  seurat_object: "results/scrna/example_lung_2grp/06_annotate/objects/seurat_annotated_final.rds"
+  cluster_column: "seurat_clusters"
+  celltype_l1_column: "celltype_L1"
+  celltype_l2_column: "celltype_L2"
+
+scevan:
+  organism: "mouse"
+  sample_name: "example_lung_2grp"
+  par_cores: 8
+  subclones: true
+  downsample: null
+  reference_clusters: "auto"
+  focus_observation_clusters: []
+  excluded_from_reference_clusters: []
+
+validation:
+  ref_max_tumor_pct: 5
+  tumor_min_pct: 50
+  mixed_min_pct: 10
+
+infercnv:
+  enabled: false
+  strategy: "stratified_diagnostic"
+  gene_order_file: "modules/cnv/configs/mouse_gene_order_mm10.tsv"
+  observation_clusters: []
+  reference_strategy: "annotation_defined"
+  reference_clusters: []
+  reference_l2_include: []
+  max_cells_per_reference_l2: 800
+  max_cells_per_observation_cluster: 2000
+
+output:
+  base: "results/scrna/example_lung_2grp/07_cnv"
+  scevan: "results/scrna/example_lung_2grp/07_cnv/scevan"
+  infercnv_inputs: "results/scrna/example_lung_2grp/07_cnv/infercnv/inputs"
+  infercnv_run: "results/scrna/example_lung_2grp/07_cnv/infercnv/run"
+  infercnv_score: "results/scrna/example_lung_2grp/07_cnv/infercnv/scoring"
+  reports: "results/scrna/example_lung_2grp/07_cnv/reports"
+  plots: "results/scrna/example_lung_2grp/07_cnv/plots"
+  module_scevan: "modules/cnv/results/example_lung_2grp/scevan"

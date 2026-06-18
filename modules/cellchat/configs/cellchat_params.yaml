@@ -13,7 +13,7 @@ input:
 # ── Dataset identity (drives output namespace) ──
 # Priority: env var DATASET_ID > config value
 dataset:
-  id: "novogene_llc"
+  id: "example_lung_2grp"
 
 # ── Experimental design (INHERIT from existing config — single source of truth) ──
 design:
@@ -29,8 +29,8 @@ design:
 filtering:
   exclude_L1:
     - "Artifact"
-  exclude_L2:
-    - "Unresolved mesenchymal"
+    - "Unresolved"
+  exclude_L2: []
   min_cells_per_celltype: 20
   drop_if_absent_in_any_group: true
 
@@ -117,18 +117,22 @@ deep_dive:
   # Cell type pairs of interest (sender → target)
   # These drive §4: focused bubble + probability comparison
   cell_type_pairs:
-    - source: "Twist1+ EMT cells"
-      target: "Immunosuppressive macrophages"
-    - source: "Twist1+ EMT cells"
-      target: "Activated T cells"
-    - source: "Postn+ mesenchymal cells"
-      target: "Immunosuppressive macrophages"
-    - source: "Immunosuppressive macrophages"
-      target: "Activated T cells"
-    - source: "Resident macrophages"
-      target: "Activated T cells"
-    - source: "MHC-II+ macrophages"
-      target: "Activated T cells"
+    - source: "Epi_Tumor_EMT_Cyc"
+      target: "LAM_TAM"
+    - source: "Epi_Tumor_EMT_Cyc"
+      target: "CD8T_PD1"
+    - source: "Epi_Tumor_EMT_Cyc"
+      target: "CAF"
+    - source: "Epi_Tumor_Sec_Cyc"
+      target: "LAM_TAM"
+    - source: "Epi_Tumor_Sec_Cyc"
+      target: "CD8T_PD1"
+    - source: "LAM_TAM"
+      target: "CD8T_PD1"
+    - source: "CAF"
+      target: "Epi_Tumor_EMT_Cyc"
+    - source: "Inflam_Mono"
+      target: "CD8T_PD1"
 
   # Chord / circle plot sizing
   chord_size: 10            # base size in inches (scales with n_celltypes)

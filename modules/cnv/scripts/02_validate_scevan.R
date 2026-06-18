@@ -27,24 +27,56 @@ suppressPackageStartupMessages({
 })
 
 # ---- Paths ----
-PROJ_ROOT   <- Sys.getenv("LUNGMETA_ROOT",
-                           unset = normalizePath(here::here("..", "..")))
-CNV_BASE    <- file.path(PROJ_ROOT, "results", "scrna", "10_cnv")
-SCEVAN_DIR  <- file.path(CNV_BASE, "scevan")
-REPORT_DIR  <- file.path(CNV_BASE, "reports")
-PLOT_DIR    <- file.path(CNV_BASE, "plots")
-SCEVAN_OUT  <- here("results", "scevan", "output")  # module-local SCEVAN output
+PROJ_ROOT <- Sys.getenv("LUNGMETA_ROOT", unset = normalizePath(here::here("..", "..")))
+module_root <- here::here()
+
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) y else x
+}
+
+path_from_root <- function(path) {
+  if (grepl("^/", path)) path else file.path(PROJ_ROOT, path)
+}
+
+args <- commandArgs(trailingOnly = TRUE)
+cfg_path <- if (length(args) >= 1 && nzchar(args[1])) {
+  args[1]
+} else if (nzchar(Sys.getenv("CNV_CONFIG", unset = ""))) {
+  Sys.getenv("CNV_CONFIG")
+} else {
+  file.path(module_root, "configs", "cnv_params.yaml")
+}
+if (!file.exists(cfg_path)) stop("Config not found: ", cfg_path)
+cfg <- yaml::read_yaml(cfg_path)
+
+SCEVAN_DIR <- if (!is.null(cfg$output$scevan)) {
+  path_from_root(cfg$output$scevan)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "scevan")
+}
+REPORT_DIR <- if (!is.null(cfg$output$reports)) {
+  path_from_root(cfg$output$reports)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "reports")
+}
+PLOT_DIR <- if (!is.null(cfg$output$plots)) {
+  path_from_root(cfg$output$plots)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "plots")
+}
+SCEVAN_OUT <- Sys.getenv("CNV_LOCAL_SCEVAN_DIR", unset = "")
+if (SCEVAN_OUT == "") {
+  SCEVAN_OUT <- if (!is.null(cfg$output$module_scevan)) {
+    path_from_root(cfg$output$module_scevan)
+  } else {
+    file.path(module_root, cfg$output$module_results %||% "results", "scevan")
+  }
+}
 
 for (d in c(REPORT_DIR, PLOT_DIR)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
 
 # ---- Config ----
-cfg_path <- here("configs", "cnv_params.yaml")
-if (file.exists(cfg_path)) {
-  cfg <- yaml::read_yaml(cfg_path)
-} else {
-  cfg <- list(ref_clusters = c(3, 4, 5, 6, 11, 14, 15))
-}
-ref_clusters <- as.character(cfg$ref_clusters)
+ref_clusters <- as.character(cfg$scevan$reference_clusters %||% character())
 
 cat("\n")
 cat("╔══════════════════════════════════════════════════╗\n")
@@ -91,20 +123,24 @@ cluster_stats <- md %>%
   ) %>%
   arrange(desc(pct_tumor))
 
-cluster_stats$is_ref <- cluster_stats$pct_tumor < 5  # auto-detect reference
+cluster_stats$is_ref <- as.character(cluster_stats$seurat_clusters) %in% ref_clusters
 
 print(as.data.frame(cluster_stats), row.names = FALSE)
 fwrite(cluster_stats, file.path(REPORT_DIR, "scevan_tumor_fraction_by_cluster.csv"))
 
 # Sanity: ref clusters should be ~0% tumor
 ref_tumor <- cluster_stats %>% filter(is_ref == TRUE)
-cat(sprintf("\n  Ref cluster tumor %%: min=%.1f%%, max=%.1f%%, mean=%.1f%%\n",
-            min(ref_tumor$pct_tumor), max(ref_tumor$pct_tumor), mean(ref_tumor$pct_tumor)))
+if (nrow(ref_tumor) > 0) {
+  cat(sprintf("\n  Ref cluster tumor %%: min=%.1f%%, max=%.1f%%, mean=%.1f%%\n",
+              min(ref_tumor$pct_tumor), max(ref_tumor$pct_tumor), mean(ref_tumor$pct_tumor)))
 
-if (max(ref_tumor$pct_tumor) > 5) {
-  cat("  ⚠️  WARNING: Some ref clusters have >5% tumor — check ref selection\n")
+  if (max(ref_tumor$pct_tumor) > 5) {
+    cat("  ⚠️  WARNING: Some ref clusters have >5% tumor — check ref selection\n")
+  } else {
+    cat("  ✅ Ref clusters are clean (<5% tumor)\n")
+  }
 } else {
-  cat("  ✅ Ref clusters are clean (<5% tumor)\n")
+  cat("\n  ⚠️  No configured ref clusters found in SCEVAN output\n")
 }
 
 # ============================================================================
@@ -258,7 +294,9 @@ if (length(rdata_files) > 0) {
       )
 
       label_cols   <- c("tumor" = "#E41A1C", "non_tumor" = "#377EB8", "ref_normal" = "#999999")
-      group_cols   <- c("FL" = "#66C2A5", "A1" = "#FC8D62", "mc" = "#8DA0CB")
+      group_levels <- sort(unique(anno_df$Group))
+      group_cols   <- scales::hue_pal()(length(group_levels))
+      names(group_cols) <- group_levels
       cluster_cols <- scales::hue_pal()(length(unique(anno_df$Cluster)))
       names(cluster_cols) <- sort(unique(anno_df$Cluster))
 
@@ -341,7 +379,7 @@ cat(sprintf("║  Non-tumor:         %6d  (%.1f%%)                       ║\n",
             n_nontumor, n_nontumor/ncol(sobj)*100))
 cat(sprintf("║  Tumor clusters:    %-40s ║\n", paste(tumor_clusters, collapse=", ")))
 cat(sprintf("║  Ref clusters OK:   %-40s ║\n",
-            ifelse(max(ref_tumor$pct_tumor) <= 5, "✅ YES", "⚠️  CHECK")))
+            ifelse(nrow(ref_tumor) > 0 && max(ref_tumor$pct_tumor) <= 5, "YES", "CHECK")))
 cat("╠══════════════════════════════════════════════════════════╣\n")
 cat(sprintf("║  Reports: %s\n", REPORT_DIR))
 cat(sprintf("║  Plots:   %s\n", PLOT_DIR))

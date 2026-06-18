@@ -74,24 +74,17 @@ sanitize_name <- function(x) {
   x
 }
 
-#' Aggregate to pseudobulk: sum raw counts per sample × celltype
+#' Aggregate to pseudobulk from an explicit cell set
 #' @return list(counts = matrix, coldata = data.frame)
-aggregate_pseudobulk <- function(sobj, celltype_col, celltype_val,
-                                 group_var, sample_var) {
-  # Subset to celltype
-  cells <- colnames(sobj)[sobj@meta.data[[celltype_col]] %in% celltype_val]
+aggregate_pseudobulk_cells <- function(sobj, cells, group_var, sample_var) {
   if (length(cells) == 0) return(NULL)
 
   sub <- sobj[, cells]
   md <- sub@meta.data
 
-  # Get raw counts from RNA assay
   counts <- GetAssayData(sub, assay = "RNA", layer = "counts")
-
-  # Unique samples
   samples <- sort(unique(md[[sample_var]]))
 
-  # Aggregate
   pb_counts <- matrix(0, nrow = nrow(counts), ncol = length(samples),
                       dimnames = list(rownames(counts), samples))
 
@@ -104,15 +97,22 @@ aggregate_pseudobulk <- function(sobj, celltype_col, celltype_val,
     }
   }
 
-  # Build coldata
   coldata <- md %>%
     group_by(across(all_of(c(sample_var, group_var)))) %>%
     summarise(n_cells = n(), .groups = "drop") %>%
     as.data.frame()
   rownames(coldata) <- coldata[[sample_var]]
-  coldata <- coldata[samples, ]  # align order
+  coldata <- coldata[samples, ]
 
   list(counts = pb_counts, coldata = coldata)
+}
+
+#' Aggregate to pseudobulk: sum raw counts per sample × celltype
+#' @return list(counts = matrix, coldata = data.frame)
+aggregate_pseudobulk <- function(sobj, celltype_col, celltype_val,
+                                 group_var, sample_var) {
+  cells <- colnames(sobj)[sobj@meta.data[[celltype_col]] %in% celltype_val]
+  aggregate_pseudobulk_cells(sobj, cells, group_var, sample_var)
 }
 
 #' Filter pseudobulk samples by min thresholds
@@ -284,15 +284,25 @@ for (axis_name in names(de_config$axes)) {
   # Determine which celltypes to analyze
   L1_include <- axis$celltype_L1_include
   L1_exclude <- axis$celltype_L1_exclude
+  L2_include <- axis$L2_include
+  L2_exclude <- axis$L2_exclude
 
   eligible_cells <- sobj@meta.data %>%
     filter(celltype_L1 %in% L1_include)
   if (!is.null(L1_exclude)) {
     eligible_cells <- eligible_cells %>% filter(!celltype_L1 %in% L1_exclude)
   }
+  if (!is.null(L2_include)) {
+    eligible_cells <- eligible_cells %>% filter(celltype_L2 %in% L2_include)
+  }
+  if (!is.null(L2_exclude)) {
+    eligible_cells <- eligible_cells %>% filter(!celltype_L2 %in% L2_exclude)
+  }
 
   log_msg(sprintf("  Eligible cells: %d (L1: %s)",
                   nrow(eligible_cells), paste(L1_include, collapse = ", ")))
+  if (!is.null(L2_include)) log_msg(sprintf("  L2 include: %s", paste(L2_include, collapse = ", ")))
+  if (!is.null(L2_exclude)) log_msg(sprintf("  L2 exclude: %s", paste(L2_exclude, collapse = ", ")))
 
   # Get L2 types
   L2_types <- sort(unique(eligible_cells$celltype_L2))
@@ -304,7 +314,8 @@ for (axis_name in names(de_config$axes)) {
       log_msg(sprintf("\\n  --- %s: %s ---", axis_name, ct))
 
       # Aggregate
-      pb <- aggregate_pseudobulk(sobj, "celltype_L2", ct, group_var, sample_var)
+      ct_cells <- rownames(eligible_cells[eligible_cells$celltype_L2 == ct, ])
+      pb <- aggregate_pseudobulk_cells(sobj, ct_cells, group_var, sample_var)
       if (is.null(pb)) { log_msg("    No cells → skip"); next }
 
       # Filter
@@ -369,7 +380,7 @@ for (axis_name in names(de_config$axes)) {
   if (isTRUE(axis$run_pooled)) {
     log_msg(sprintf("\\n  --- %s: POOLED ---", axis_name))
 
-    pb <- aggregate_pseudobulk(sobj, "celltype_L1", L1_include, group_var, sample_var)
+    pb <- aggregate_pseudobulk_cells(sobj, rownames(eligible_cells), group_var, sample_var)
     if (is.null(pb)) { log_msg("    No cells → skip"); next }
 
     pb <- filter_pseudobulk(pb, de_config)
@@ -430,7 +441,16 @@ for (axis_name in names(de_config$axes)) {
     log_msg(sprintf("\\n  --- %s: SENSITIVITY (L1: %s) ---",
                     axis_name, paste(sens_L1, collapse = "+")))
 
-    pb <- aggregate_pseudobulk(sobj, "celltype_L1", sens_L1, group_var, sample_var)
+    sens_cells <- sobj@meta.data %>%
+      filter(celltype_L1 %in% sens_L1)
+    if (!is.null(L2_include)) {
+      sens_cells <- sens_cells %>% filter(celltype_L2 %in% L2_include)
+    }
+    if (!is.null(L2_exclude)) {
+      sens_cells <- sens_cells %>% filter(!celltype_L2 %in% L2_exclude)
+    }
+
+    pb <- aggregate_pseudobulk_cells(sobj, rownames(sens_cells), group_var, sample_var)
     if (!is.null(pb)) {
       pb <- filter_pseudobulk(pb, de_config)
       if (ncol(pb$counts) >= 4) {

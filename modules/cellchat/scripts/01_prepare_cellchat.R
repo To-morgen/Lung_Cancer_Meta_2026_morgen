@@ -75,7 +75,12 @@ resolve_design <- function(cfg, project_root, sobj = NULL) {
   cat(sprintf("[design] source: %s\n", src))
 
   if (src == "de_contrasts") {
-    de_path <- file.path(project_root, cfg$design$contrasts_config)
+    de_path_raw <- Sys.getenv("DE_CONTRASTS_CONFIG", "")
+    if (de_path_raw == "") de_path_raw <- cfg$design$contrasts_config
+    if (is.null(de_path_raw) || de_path_raw == "") {
+      stop("[CONTRACT] No contrasts config: set DE_CONTRASTS_CONFIG or design.contrasts_config")
+    }
+    de_path <- if (grepl("^/", de_path_raw)) de_path_raw else file.path(project_root, de_path_raw)
     if (!file.exists(de_path)) stop("[CONTRACT] Contrasts config not found: ", de_path)
     de_cfg <- yaml::read_yaml(de_path)
 
