@@ -1,0 +1,81 @@
+"""
+Snakefile — public smoke demo for generated toy lung scRNA inputs.
+"""
+import os
+
+SNAKEFILE_DIR = workflow.basedir
+PROJECT_ROOT = os.path.normpath(os.path.join(SNAKEFILE_DIR, "..", "..", ".."))
+
+configfile: workflow.source_path("config.yaml")
+
+DS_PREFIX = config["ds_prefix"]
+SAMPLES = config["samples"]
+CELLRANGER_OUT = os.path.join(PROJECT_ROOT, config["cellranger_out"])
+MANIFEST = os.path.join(PROJECT_ROOT, config["manifest"])
+OUT_BASE = os.path.join(PROJECT_ROOT, config.get("outputs", {}).get("base", os.path.join("results", "demo", DS_PREFIX)))
+LOGS = os.path.join(PROJECT_ROOT, "logs", "demo", DS_PREFIX)
+
+rule all:
+    input:
+        os.path.join(OUT_BASE, ".smoke_demo_done")
+
+rule toy_inputs:
+    output:
+        expand(
+            os.path.join(CELLRANGER_OUT, "{sample}", "outs", "filtered_feature_bc_matrix", "matrix.mtx"),
+            sample=SAMPLES
+        ),
+        MANIFEST
+    params:
+        script=os.path.join(PROJECT_ROOT, "examples", "toy_lung_2grp", "generate_toy_inputs.R")
+    shell:
+        """
+        Rscript {params.script}
+        """
+
+rule smoke_validate_inputs:
+    input:
+        matrices=expand(
+            os.path.join(CELLRANGER_OUT, "{sample}", "outs", "filtered_feature_bc_matrix", "matrix.mtx"),
+            sample=SAMPLES
+        ),
+        manifest=MANIFEST
+    output:
+        report=os.path.join(OUT_BASE, "input_contract_report.tsv"),
+        sentinel=os.path.join(OUT_BASE, ".smoke_demo_done")
+    log:
+        os.path.join(LOGS, "smoke_validate_inputs.log")
+    run:
+        import csv
+        import os
+
+        os.makedirs(os.path.dirname(output.report), exist_ok=True)
+        os.makedirs(os.path.dirname(log[0]), exist_ok=True)
+
+        rows = []
+        for sample, matrix_path in zip(SAMPLES, input.matrices):
+            matrix_dir = os.path.dirname(matrix_path)
+            expected = ["matrix.mtx", "features.tsv", "barcodes.tsv"]
+            missing = [name for name in expected if not os.path.exists(os.path.join(matrix_dir, name))]
+            rows.append({
+                "sample_id": sample,
+                "matrix_dir": os.path.relpath(matrix_dir, PROJECT_ROOT),
+                "status": "pass" if not missing else "fail",
+                "missing": ",".join(missing)
+            })
+
+        with open(output.report, "w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["sample_id", "matrix_dir", "status", "missing"], delimiter="\t")
+            writer.writeheader()
+            writer.writerows(rows)
+
+        with open(log[0], "w") as handle:
+            for row in rows:
+                handle.write(f"{row['sample_id']}\t{row['status']}\t{row['missing']}\n")
+
+        failures = [row for row in rows if row["status"] != "pass"]
+        if failures:
+            raise ValueError(f"Smoke demo input contract failed for {len(failures)} sample(s)")
+
+        with open(output.sentinel, "w") as handle:
+            handle.write("ok\n")
