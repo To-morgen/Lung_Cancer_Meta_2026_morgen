@@ -121,6 +121,8 @@ Milestone v0.1 focuses on the public pipeline surface:
 
 ## Documentation
 
+- `docs/pipeline_overview.md` — phase map, repository contracts, and v0.1 scope
+- `docs/dataset_onboarding.md` — public-safe process for adding new datasets
 - `docs/SETUP.md` — setup, storage policy, and execution conventions
 - `docs/SOP_DATASET_ONBOARDING.md` — dataset onboarding lifecycle
 - `configs/datasets/_template.yaml` — public dataset metadata template
