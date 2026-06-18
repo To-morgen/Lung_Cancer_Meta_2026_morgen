@@ -84,9 +84,9 @@ This separates two different states:
 - computational step completed
 - biological interpretation approved
 
-## Public v0.1 scope
+## Public v0.2 scope
 
-v0.1 is intentionally narrow:
+v0.2 is intentionally narrow:
 
 - public-safe README and setup docs
 - example dataset workflow
@@ -94,6 +94,7 @@ v0.1 is intentionally narrow:
 - Phase01/07/08/09 Snakemake rules
 - CNV module scripts and shared config
 - CellChat summary/reporting script
+- generated toy inputs and a Snakemake smoke workflow that validates the public input contract
 
-Future milestones should add runnable toy data, automated smoke tests, and a
+Future milestones should add a realistic public case study, automated smoke tests in CI, and a
 stable release tag after the public branch is reviewed.

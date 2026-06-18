@@ -1,0 +1,19 @@
+# ============================================================================
+# Smoke demo config — tiny generated lung scRNA inputs
+# ============================================================================
+
+dataset_id: "DEMO_Toy_Lung_scRNA_2grp_v1"
+ds_prefix: "smoke_lung_2grp"
+species: "mouse"
+
+samples:
+  - control_1
+  - control_2
+  - treatment_1
+  - treatment_2
+
+cellranger_out: "data/demo/toy_lung_2grp/cellranger_out"
+manifest: "data/demo/toy_lung_2grp/sample_manifest.csv"
+
+outputs:
+  base: "results/demo/smoke_lung_2grp"

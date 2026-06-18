@@ -22,8 +22,8 @@ Dataset config
   -> 09 CellChat communication analysis
 ```
 
-The current public milestone is **v0.1**: a public-safe, config-driven scaffold for
-lung cancer scRNA dataset onboarding and downstream analysis.
+The current public milestone is **v0.2**: a public-safe, config-driven scaffold with
+a runnable smoke demo for the dataset input contract.
 
 ## Repository scope
 
@@ -76,6 +76,18 @@ Rscript -e 'renv::restore()'
 (cd modules/cellchat && Rscript -e 'renv::restore()')
 ```
 
+## Reproducible smoke demo
+
+Run the public smoke demo without private data:
+
+```bash
+bash scripts/verify_public_demo.sh
+```
+
+This generates tiny toy inputs under `data/demo/`, validates the expected
+10x-like input contract with Snakemake, and writes ignored outputs under
+`results/demo/`.
+
 ## Run a dataset workflow
 
 Each dataset workflow has its own `workflow/datasets/<dataset>/Snakefile` and
@@ -100,9 +112,9 @@ Use relative paths through `data/` or placeholders in public configs. Put real r
 data paths, vendor delivery paths, and machine-specific settings in `configs_private/`
 or `.env.sh`.
 
-## Public v0.1 focus
+## Public v0.2 focus
 
-Milestone v0.1 focuses on the public pipeline surface:
+Milestone v0.2 focuses on the public pipeline surface plus a runnable smoke demo:
 
 - dataset-driven Snakemake orchestration
 - manual gate rules for review checkpoints
@@ -110,6 +122,7 @@ Milestone v0.1 focuses on the public pipeline surface:
 - pseudobulk DE configuration
 - CellChat prepare/run/compare/deep-dive/summary scripts
 - public-safe ignore rules and setup docs
+- generated toy inputs and a Snakemake smoke workflow
 
 ## Design principles
 
@@ -121,7 +134,8 @@ Milestone v0.1 focuses on the public pipeline surface:
 
 ## Documentation
 
-- `docs/pipeline_overview.md` — phase map, repository contracts, and v0.1 scope
+- `docs/reproducible_demo.md` — smoke demo that runs without private data
+- `docs/pipeline_overview.md` — phase map, repository contracts, and v0.2 scope
 - `docs/dataset_onboarding.md` — public-safe process for adding new datasets
 - `docs/SETUP.md` — setup, storage policy, and execution conventions
 - `docs/SOP_DATASET_ONBOARDING.md` — dataset onboarding lifecycle
