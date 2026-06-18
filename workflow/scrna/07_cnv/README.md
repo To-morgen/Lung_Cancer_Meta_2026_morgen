@@ -61,8 +61,8 @@ Rscript scripts/02_validate_scevan.R
 回到主项目环境，将计算得到的 CNV 结果（如 `Malignant` vs `Normal` 标签）合并到最终的 Seurat 对象中。
 
 ```bash
-# 返回项目根目录
-cd ~/biohub/projects/Lung_Cancer_Meta_2026_morgen
+# Return to the main project root
+cd /path/to/Lung_Cancer_Meta_2026_morgen
 
 # 执行标签回流脚本
 Rscript workflow/scrna/07_cnv/01_cnv_to_annotation.R

@@ -33,6 +33,10 @@ if (proj_root == "") {
 
 module_root <- here::here()
 
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) y else x
+}
+
 cat("\n")
 cat("╔══════════════════════════════════════════════════╗\n")
 cat("║   CNV Module: SCEVAN Tumor/Normal Inference      ║\n")
@@ -40,32 +44,76 @@ cat(sprintf("║   Project:  %-36s║\n", basename(proj_root)))
 cat(sprintf("║   Time:     %s            ║\n", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
 cat("╚══════════════════════════════════════════════════╝\n\n")
 
-cfg_path <- file.path(module_root, "configs", "cnv_params.yaml")
+args <- commandArgs(trailingOnly = TRUE)
+cfg_path <- if (length(args) >= 1 && nzchar(args[1])) {
+  args[1]
+} else if (nzchar(Sys.getenv("CNV_CONFIG", unset = ""))) {
+  Sys.getenv("CNV_CONFIG")
+} else {
+  file.path(module_root, "configs", "cnv_params.yaml")
+}
 if (!file.exists(cfg_path)) stop("Config not found: ", cfg_path)
 cfg <- yaml::read_yaml(cfg_path)
 
-cat(sprintf("Species:    %s\n", cfg$species))
-cat(sprintf("Organism:   %s\n", cfg$scevan$organism))
-cat(sprintf("Cores:      %d\n", cfg$scevan$par_cores))
-cat(sprintf("Subclones:  %s\n", ifelse(isTRUE(cfg$scevan$subclones), "yes", "no")))
+path_from_root <- function(path) {
+  if (grepl("^/", path)) path else file.path(proj_root, path)
+}
 
-# Output directories
-local_out  <- file.path(module_root, cfg$output$module_results, "scevan")
-main_out   <- file.path(proj_root, cfg$output$main_results, "scevan")
-report_out <- file.path(proj_root, cfg$output$main_results, "reports")
+scevan_cfg <- cfg$scevan
+if (is.null(scevan_cfg$organism)) scevan_cfg$organism <- cfg$species
+if (is.null(scevan_cfg$par_cores)) scevan_cfg$par_cores <- 8
+scevan_cores_env <- Sys.getenv("SCEVAN_CORES", unset = "")
+if (nzchar(scevan_cores_env)) {
+  scevan_cfg$par_cores <- as.integer(scevan_cores_env)
+  if (is.na(scevan_cfg$par_cores) || scevan_cfg$par_cores < 1) {
+    stop("Invalid SCEVAN_CORES: ", scevan_cores_env)
+  }
+}
+if (is.null(scevan_cfg$subclones)) scevan_cfg$subclones <- TRUE
+if (is.null(scevan_cfg$sample_name)) scevan_cfg$sample_name <- cfg$dataset_id %||% "LLC_tumor"
+
+cat(sprintf("Config:     %s\n", cfg_path))
+cat(sprintf("Dataset:    %s\n", cfg$dataset_id %||% "unspecified"))
+cat(sprintf("Species:    %s\n", cfg$species))
+cat(sprintf("Organism:   %s\n", scevan_cfg$organism))
+cat(sprintf("Cores:      %d\n", scevan_cfg$par_cores))
+cat(sprintf("Subclones:  %s\n", ifelse(isTRUE(scevan_cfg$subclones), "yes", "no")))
+
+local_out <- if (!is.null(cfg$output$module_scevan)) {
+  path_from_root(cfg$output$module_scevan)
+} else if (!is.null(cfg$output$module_results)) {
+  file.path(module_root, cfg$output$module_results, "scevan")
+} else if (!is.null(cfg$output$scevan_local)) {
+  path_from_root(cfg$output$scevan_local)
+} else {
+  file.path(module_root, "results", cfg$dataset_id %||% "default", "scevan")
+}
+
+main_out <- if (!is.null(cfg$output$scevan)) {
+  path_from_root(cfg$output$scevan)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "scevan")
+}
+
+report_out <- if (!is.null(cfg$output$reports)) {
+  path_from_root(cfg$output$reports)
+} else {
+  file.path(path_from_root(cfg$output$main_results), "reports")
+}
 
 for (d in c(local_out, main_out, report_out)) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
 }
 
-# Standardized output path (THE contract)
+Sys.setenv(CNV_CONFIG = normalizePath(cfg_path), CNV_LOCAL_SCEVAN_DIR = local_out)
+
 FINAL_OUTPUT <- file.path(main_out, "seurat_with_scevan.rds")
 
 # ============================================================================
 # 2. Load Seurat Object
 # ============================================================================
 
-input_path <- file.path(proj_root, cfg$input$seurat_object)
+input_path <- path_from_root(cfg$input$seurat_object)
 if (!file.exists(input_path)) stop("Input not found: ", input_path)
 
 cat(sprintf("\nLoading: %s\n", basename(input_path)))
@@ -84,7 +132,7 @@ cat(sprintf("  Cells: %d | Genes: %d | Clusters: %s\n",
 # 3. Optional Downsample
 # ============================================================================
 
-ds_n <- cfg$scevan$downsample
+ds_n <- scevan_cfg$downsample
 if (!is.null(ds_n) && is.numeric(ds_n) && ds_n < ncol(sobj)) {
   cat(sprintf("\n⚠️  Downsampling: %d → %d cells\n", ncol(sobj), ds_n))
   set.seed(42)
@@ -104,7 +152,7 @@ cat(sprintf("  %d genes × %d cells (%s)\n",
 # 5. Reference Cells
 # ============================================================================
 
-ref_config <- cfg$scevan$reference_clusters
+ref_config <- scevan_cfg$reference_clusters
 
 if (is.null(ref_config) || (is.character(ref_config) && ref_config == "auto")) {
   cat("\nReference: AUTO\n")
@@ -142,19 +190,19 @@ tryCatch({
   if (is.null(ref_barcodes)) {
     results <- SCEVAN::pipelineCNA(
       count_mtx  = counts,
-      sample     = "LLC_tumor",
-      organism   = cfg$scevan$organism,
-      par_cores  = cfg$scevan$par_cores,
-      SUBCLONES  = isTRUE(cfg$scevan$subclones)
+      sample     = scevan_cfg$sample_name,
+      organism   = scevan_cfg$organism,
+      par_cores  = scevan_cfg$par_cores,
+      SUBCLONES  = isTRUE(scevan_cfg$subclones)
     )
   } else {
     results <- SCEVAN::pipelineCNA(
       count_mtx  = counts,
-      sample     = "LLC_tumor",
-      organism   = cfg$scevan$organism,
-      par_cores  = cfg$scevan$par_cores,
+      sample     = scevan_cfg$sample_name,
+      organism   = scevan_cfg$organism,
+      par_cores  = scevan_cfg$par_cores,
       norm_cell  = ref_barcodes,
-      SUBCLONES  = isTRUE(cfg$scevan$subclones)
+      SUBCLONES  = isTRUE(scevan_cfg$subclones)
     )
   }
   scevan_ok <- TRUE
@@ -183,7 +231,7 @@ tryCatch({
     Sys.setenv(LUNGMETA_ROOT = proj_root)
     ret <- system2(
       command = file.path(R.home("bin"), "Rscript"),
-      args = shQuote(recovery_script),
+      args = c(shQuote(recovery_script), shQuote(normalizePath(cfg_path))),
       stdout = "", stderr = ""
     )
 
@@ -222,7 +270,7 @@ if (source_path == "direct") {
       scevan_df$barcode <- rownames(scevan_df)
     }
   } else {
-    out_csv <- list.files(local_out, pattern = "LLC_tumor.*\\.csv$",
+    out_csv <- list.files(local_out, pattern = "\\.csv$",
                           full.names = TRUE, recursive = TRUE)
     if (length(out_csv) > 0) {
       scevan_df <- fread(out_csv[1])
@@ -273,6 +321,9 @@ if (source_path == "direct") {
 
   # 03_recover already saved seurat_with_scevan_recovered.rds
   recovered_path <- file.path(main_out, "seurat_with_scevan_recovered.rds")
+  if (!file.exists(recovered_path)) {
+    recovered_path <- file.path(local_out, "seurat_with_scevan_recovered.rds")
+  }
   if (!file.exists(recovered_path)) {
     stop("Recovery output not found: ", recovered_path)
   }

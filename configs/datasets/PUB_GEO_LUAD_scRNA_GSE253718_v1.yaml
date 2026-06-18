@@ -1,12 +1,12 @@
 # ============================================================================
-# PUB_GEO_LUAD_scRNA_GSE253718_v1.yaml
-# Human EGFR-mutant LUAD — treatment-naive vs TKI-resistant
-# Source: <https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE253718>
+# Public dataset config example — human LUAD scRNA, GSE253718
+# Source: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE253718
+# Paths are relative placeholders; edit them for your local data layout.
 # ============================================================================
 
 dataset_id: "PUB_GEO_LUAD_scRNA_GSE253718_v1"
 dataset_class: "public_original"
-owner: "morgen"
+owner: "example_user"
 species: "human"
 disease: "EGFR-mutant LUAD"
 modality: "scrna"
@@ -17,40 +17,36 @@ n_samples: 6
 
 groups:
   naive:
-    description: "treatment-naive (initially diagnosed)"
+    description: "treatment-naive"
     samples: ["naive_1", "naive_2", "naive_3"]
-  TKI_resistant:
+  resistant:
     description: "EGFR-TKI acquired resistance"
-    samples: ["TKI_1", "TKI_2", "TKI_3"]
+    samples: ["resistant_1", "resistant_2", "resistant_3"]
 
 comparisons:
-  - name: "TKI_vs_naive"
-    numerator: "TKI_resistant"
+  - name: "resistant_vs_naive"
+    numerator: "resistant"
     denominator: "naive"
-    purpose: "Identify transcriptomic changes upon TKI resistance"
+    purpose: "Compare resistant and treatment-naive tumors"
 
-# ── Paths ──
-project_data_root: "/data1/morgen/data_center/Lung_Cancer_2026/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1"
-mtx_dir: "/data1/morgen/data_center/Lung_Cancer_2026/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1/mtx_per_sample"
-manifest_path: "/data1/morgen/data_center/Lung_Cancer_2026/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1/sample_manifest.csv"
+project_data_root: "data/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1"
+mtx_dir: "data/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1/mtx_per_sample"
+manifest_path: "data/raw/public_original/PUB_GEO_LUAD_scRNA_GSE253718_v1/sample_manifest.csv"
 
-# ── Samples ──
 samples:
-  TKI_1:  { group: "TKI_resistant", replicate: 1, gsm: "GSM8026954", patient: "Patient1" }
-  TKI_2:  { group: "TKI_resistant", replicate: 2, gsm: "GSM8026955", patient: "Patient2" }
-  TKI_3:  { group: "TKI_resistant", replicate: 3, gsm: "GSM8026956", patient: "Patient3" }
-  naive_1: { group: "naive",         replicate: 1, gsm: "GSM8026957", patient: "Patient4" }
-  naive_2: { group: "naive",         replicate: 2, gsm: "GSM8026958", patient: "Patient5" }
-  naive_3: { group: "naive",         replicate: 3, gsm: "GSM8026959", patient: "Patient6" }
+  resistant_1: { group: "resistant", replicate: 1, accession: "GSM8026954" }
+  resistant_2: { group: "resistant", replicate: 2, accession: "GSM8026955" }
+  resistant_3: { group: "resistant", replicate: 3, accession: "GSM8026956" }
+  naive_1:     { group: "naive",     replicate: 1, accession: "GSM8026957" }
+  naive_2:     { group: "naive",     replicate: 2, accession: "GSM8026958" }
+  naive_3:     { group: "naive",     replicate: 3, accession: "GSM8026959" }
 
-# ── QC overrides ──
 qc_overrides:
   species: "human"
   mito_pattern: "^MT-"
   ribo_pattern: "^RP[SL]"
-  skip_soupx: true  # no raw_feature_bc_matrix available
+  skip_soupx: true
 
-# ── Normalization (same as project default) ──
 normalization:
   method: "SCTransform"
   n_variable_features: 3000

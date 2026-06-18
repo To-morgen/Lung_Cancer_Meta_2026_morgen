@@ -358,7 +358,7 @@ check_all_manifests <- function(config_dir    = CONFIG_ROOT,
 if (interactive()) {
   # ── 交互式模式（RStudio Web，推荐）──────────────────────────────────────────
   # 检查单个数据集（传 dataset_id 或 yaml 路径均可）：
-  # check_dataset_manifest("VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1")
+  # check_dataset_manifest("EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1")
   # check_dataset_manifest(here("configs", "datasets", "VEND_xxx.yaml"))
   #
   # 批量检查所有数据集：

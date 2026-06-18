@@ -1,0 +1,89 @@
+# ============================================================================
+# Example Phase08 DE contrast config
+# ============================================================================
+
+group_var: "group"
+sample_var: "sample_id"
+reference_group: "control"
+
+contrasts:
+  treatment_vs_control:
+    numerator: "treatment"
+    denominator: "control"
+    description: "Treatment vs control"
+
+axes:
+  tumor_intrinsic:
+    description: "DE within malignant epithelial cells"
+    celltype_L1_include: ["Epi_Tumor"]
+    run_per_L2: true
+    run_pooled: true
+
+  myeloid_primary:
+    description: "Primary myeloid DE"
+    celltype_L1_include: ["Myeloid"]
+    run_per_L2: true
+    run_pooled: true
+
+  lymphoid_primary:
+    description: "Primary lymphoid DE"
+    celltype_L1_include: ["Lymphoid"]
+    run_per_L2: true
+    run_pooled: true
+
+  stromal_primary:
+    description: "Primary stromal DE"
+    celltype_L1_include: ["Stromal"]
+    run_per_L2: true
+    run_pooled: true
+
+pseudobulk:
+  min_cells_per_sample: 30
+  min_samples_per_group: 2
+  min_total_count: 1000
+  min_detected_genes: 200
+
+deseq2:
+  test: "Wald"
+  fitType: "local"
+  alpha: 0.05
+  lfcThreshold: 0
+  independent_filtering: true
+
+thresholds:
+  padj: 0.05
+  log2fc: 0.5
+  log2fc_strict: 1.0
+
+enrichment:
+  method: "fgsea"
+  ranking_metric: "sign_log_p"
+  nPermSimple: 10000
+  min_size: 15
+  max_size: 500
+  gene_sets:
+    - name: "Hallmark"
+      collection: "H"
+      species: "Mus musculus"
+    - name: "Reactome"
+      collection: "C2"
+      subcollection: "CP:REACTOME"
+      species: "Mus musculus"
+  custom_focus:
+    - "HALLMARK_INTERFERON_GAMMA_RESPONSE"
+    - "HALLMARK_INFLAMMATORY_RESPONSE"
+    - "HALLMARK_TNFA_SIGNALING_VIA_NFKB"
+    - "HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION"
+  min_count_per_gene: 5
+  min_samples_expressing: 2
+
+visualization:
+  volcano:
+    top_n_label: 15
+  highlight_celltypes:
+    - "pooled"
+    - "Epi_Tumor"
+    - "Myeloid"
+    - "Lymphoid"
+    - "Stromal"
+  max_volcano_panels: 12

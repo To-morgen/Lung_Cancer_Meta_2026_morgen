@@ -1,39 +1,39 @@
-# ============================================================
-# Dataset Config Template: internally_generated
-# ============================================================
-# Copy this to configs_private/datasets/<dataset_id>.yaml
-# Fill in actual values. DO NOT COMMIT the filled version.
+# ============================================================================
+# Public template — internally generated lung scRNA dataset
+# Copy to configs_private/datasets/<dataset_id>.yaml and fill real local paths.
+# Do not commit filled private configs.
+# ============================================================================
 
-dataset_id: "<DATASET_ID>"
+dataset_id: "EXAMPLE_Lung_scRNA_2grp_v1"
 dataset_class: "internally_generated"
-owner: "<owner>"
-species: "<human|mouse>"
-strain: "<e.g. C57BL/6>"
-disease_model: "<e.g. LLC_lung_cancer>"
+owner: "example_user"
+species: "mouse"
+strain: "C57BL/6"
+disease_model: "lung_cancer_model"
 modality: "scrna"
 platform: "10x_chromium"
-vendor: "<e.g. Novogene>"
-n_samples: 0
+vendor: "sequencing_provider"
+n_samples: 4
 
-# ---- Experimental Design ----
 groups:
-  group_name:
-    description: "<description>"
-    samples: ["sample_01", "sample_02"]
+  control:
+    description: "control group"
+    samples: ["control_1", "control_2"]
+  treatment:
+    description: "treatment group"
+    samples: ["treatment_1", "treatment_2"]
 
 comparisons:
-  - name: "<group_A>_vs_<group_B>"
-    numerator: "<group_A>"
-    denominator: "<group_B>"
-    purpose: "<biological question>"
+  - name: "treatment_vs_control"
+    numerator: "treatment"
+    denominator: "control"
+    purpose: "example two-group comparison"
 
-# ---- HPC Paths ----
-fastq_source: "<original vendor delivery path>"
-project_data_root: "<data_center path for this dataset>"
-cellranger_out: "{project_data_root}/cellranger_out"
-curated_out: "<curated output path>"
+fastq_source: "data/raw/internally_generated/EXAMPLE_Lung_scRNA_2grp_v1/fastq"
+project_data_root: "data/raw/internally_generated/EXAMPLE_Lung_scRNA_2grp_v1"
+cellranger_out: "data/raw/internally_generated/EXAMPLE_Lung_scRNA_2grp_v1/cellranger_out"
+curated_out: "data/processed/curated/scrna/EXAMPLE_Lung_scRNA_2grp_v1"
 
-# ---- Alignment ----
 alignment:
   tool: "cellranger"
   version: "<version>"
@@ -42,7 +42,6 @@ alignment:
   localcores: 16
   localmem: 64
 
-# ---- QC Thresholds (override defaults) ----
 qc:
   min_nFeature: 200
   max_nFeature: 6000
@@ -51,7 +50,6 @@ qc:
   ambient_method: "SoupX"
   doublet_method: "scDblFinder"
 
-# ---- Normalization ----
 normalization:
-  method: "LogNormalize"
-  scale_factor: 10000
+  method: "SCTransform"
+  n_variable_features: 3000

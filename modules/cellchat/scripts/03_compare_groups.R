@@ -57,6 +57,26 @@ safe_dev_off <- function() {
   try(dev.off(), silent = TRUE)
 }
 
+group_label_map <- c(
+  C = "Control (C)",
+  K = "Xan (K)"
+)
+
+label_group <- function(group) {
+  group <- as.character(group)
+  out <- group
+  hit <- group %in% names(group_label_map)
+  out[hit] <- unname(group_label_map[group[hit]])
+  out
+}
+
+label_contrast <- function(cname, numerator = NULL, denominator = NULL) {
+  if (!is.null(numerator) && !is.null(denominator)) {
+    return(sprintf("%s = %s vs %s", cname, label_group(numerator), label_group(denominator)))
+  }
+  cname
+}
+
 normalize_comparisons <- function(comparisons) {
   comp_names <- names(comparisons)
   out <- vector("list", length(comparisons))
@@ -368,8 +388,10 @@ plot_section_total <- plot_section_total + 1L
 
 # ★ FIX 2: compareInteractions expects group names (character), not integer indices
 tryCatch({
-  p1 <- compareInteractions(cc_merged, show.legend = TRUE, group = analysis_groups)
-  p2 <- compareInteractions(cc_merged, show.legend = TRUE, group = analysis_groups, measure = "weight")
+  p1 <- compareInteractions(cc_merged, show.legend = TRUE, group = analysis_groups) +
+    labs(title = "Interaction count", subtitle = paste(label_group(analysis_groups), collapse = " vs "))
+  p2 <- compareInteractions(cc_merged, show.legend = TRUE, group = analysis_groups, measure = "weight") +
+    labs(title = "Interaction strength", subtitle = paste(label_group(analysis_groups), collapse = " vs "))
 
   pdf(file.path(out$plots, "01_global_interaction_comparison.pdf"), width = 12, height = 6)
   print(p1 + p2)
@@ -404,7 +426,8 @@ for (comp in comparisons) {
     next
   }
 
-  cat(sprintf("\n  --- %s: %s vs %s ---\n", cname, num, den))
+  contrast_label <- label_contrast(cname, num, den)
+  cat(sprintf("\n  --- %s ---\n", contrast_label))
 
   plot_section_total <- plot_section_total + 1L
   tryCatch({
@@ -415,14 +438,14 @@ for (comp in comparisons) {
       comparison = c(idx_den, idx_num),
       weight.scale = TRUE,
       measure = "count",
-      title.name = sprintf("Diff #interactions: %s", cname)
+      title.name = sprintf("Diff #interactions: %s", contrast_label)
     )
     netVisual_diffInteraction(
       cc_merged,
       comparison = c(idx_den, idx_num),
       weight.scale = TRUE,
       measure = "weight",
-      title.name = sprintf("Diff strength: %s", cname)
+      title.name = sprintf("Diff strength: %s", contrast_label)
     )
     safe_dev_off()
 
@@ -433,14 +456,14 @@ for (comp in comparisons) {
       comparison = c(idx_den, idx_num),
       weight.scale = TRUE,
       measure = "count",
-      title.name = sprintf("Diff #interactions: %s", cname)
+      title.name = sprintf("Diff #interactions: %s", contrast_label)
     )
     netVisual_diffInteraction(
       cc_merged,
       comparison = c(idx_den, idx_num),
       weight.scale = TRUE,
       measure = "weight",
-      title.name = sprintf("Diff strength: %s", cname)
+      title.name = sprintf("Diff strength: %s", contrast_label)
     )
     safe_dev_off()
 
@@ -459,13 +482,13 @@ for (comp in comparisons) {
       cc_merged,
       comparison = c(idx_den, idx_num),
       measure = "count",
-      title.name = sprintf("#interactions: %s", cname)
+      title.name = sprintf("#interactions: %s", contrast_label)
     )
     netVisual_heatmap(
       cc_merged,
       comparison = c(idx_den, idx_num),
       measure = "weight",
-      title.name = sprintf("Strength: %s", cname)
+      title.name = sprintf("Strength: %s", contrast_label)
     )
     safe_dev_off()
 
@@ -475,13 +498,13 @@ for (comp in comparisons) {
       cc_merged,
       comparison = c(idx_den, idx_num),
       measure = "count",
-      title.name = sprintf("#interactions: %s", cname)
+      title.name = sprintf("#interactions: %s", contrast_label)
     )
     netVisual_heatmap(
       cc_merged,
       comparison = c(idx_den, idx_num),
       measure = "weight",
-      title.name = sprintf("Strength: %s", cname)
+      title.name = sprintf("Strength: %s", contrast_label)
     )
     safe_dev_off()
 
@@ -500,7 +523,8 @@ cat("\n[step] Information flow comparison (rankNet)...\n")
 
 plot_section_total <- plot_section_total + 1L
 tryCatch({
-  p_flow <- rankNet(cc_merged, mode = "comparison", stacked = TRUE, do.stat = TRUE)
+  p_flow <- rankNet(cc_merged, mode = "comparison", stacked = TRUE, do.stat = TRUE) +
+    labs(title = sprintf("Information flow: %s", label_contrast("K_vs_C", "K", "C")))
 
   pdf(file.path(out$plots, "04_information_flow_comparison.pdf"), width = 10, height = 14)
   print(p_flow)
@@ -519,7 +543,8 @@ tryCatch({
 
 plot_section_total <- plot_section_total + 1L
 tryCatch({
-  p_flow2 <- rankNet(cc_merged, mode = "comparison", stacked = FALSE, do.stat = TRUE)
+  p_flow2 <- rankNet(cc_merged, mode = "comparison", stacked = FALSE, do.stat = TRUE) +
+    labs(title = sprintf("Information flow (unstacked): %s", label_contrast("K_vs_C", "K", "C")))
 
   pdf(file.path(out$plots, "04b_information_flow_unstacked.pdf"), width = 10, height = 14)
   print(p_flow2)
@@ -702,7 +727,7 @@ for (comp in comparisons) {
       remove.isolate = bubble_remove_isolate,
       thresh         = bubble_thresh,
       font.size      = bubble_font_size,
-      title.name     = sprintf("All focus pathways: %s (%d)", cname, length(pw_plot))
+      title.name     = sprintf("All focus pathways: %s (%d pathways)", contrast_label, length(pw_plot))
     )
 
     cat(sprintf("  full: %d×%d axis elements, font=%.0f, angle=%d, %.0f×%.0f in\n",
@@ -743,7 +768,7 @@ for (comp in comparisons) {
         thresh         = bubble_thresh,
         font.size      = bubble_font_size,
         title.name     = sprintf("%s chunk %d/%d (%d pathways)",
-                                 cname, ci, length(chunks), length(chunk_pw))
+                                 contrast_label, ci, length(chunks), length(chunk_pw))
       )
 
       cat(sprintf("    chunk%02d: %d×%d axis elements, font=%.0f, angle=%d, %.0f×%.0f in\n",
@@ -782,7 +807,7 @@ for (comp in comparisons) {
         remove.isolate = bubble_remove_isolate,
         thresh         = bubble_thresh,
         font.size      = bubble_font_size,
-        title.name     = sprintf("All common pathways: %s (%d)", cname, length(common_pw))
+        title.name     = sprintf("All common pathways: %s (%d pathways)", contrast_label, length(common_pw))
       )
 
       cat(sprintf("  all: %d×%d axis elements, font=%.0f, angle=%d, %.0f×%.0f in\n",
@@ -855,17 +880,18 @@ for (comp in comparisons) {
   }
 
     tryCatch({
-    cat(sprintf("  --- %s: %s vs %s ---\n", cname, num, den))
+    contrast_label <- label_contrast(cname, num, den)
+    cat(sprintf("  --- %s ---\n", contrast_label))
 
     # ★ FIX: CellChat v2 signaling role scatter is called on INDIVIDUAL objects,
     #   not merged. Each object must have centrality pre-computed (done above).
     p_den <- netAnalysis_signalingRole_scatter(
       cc_list[[den]],
-      title = den
+      title = label_group(den)
     )
     p_num <- netAnalysis_signalingRole_scatter(
       cc_list[[num]],
-      title = num
+      title = label_group(num)
     )
     p_combined <- p_den + p_num + plot_layout(ncol = 2)
 
@@ -972,6 +998,11 @@ if (isTRUE(cfg$output$save_qc_tables)) {
 
     report <- data.table(
       contrast = cname,
+      contrast_label = label_contrast(cname, num, den),
+      numerator_group = num,
+      numerator_label = label_group(num),
+      denominator_group = den,
+      denominator_label = label_group(den),
       category = c(
         rep("num_only", length(setdiff(pw_num, pw_den))),
         rep("den_only", length(setdiff(pw_den, pw_num))),

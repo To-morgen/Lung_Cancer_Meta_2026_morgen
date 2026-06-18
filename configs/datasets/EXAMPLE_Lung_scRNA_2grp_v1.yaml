@@ -1,0 +1,41 @@
+# ============================================================================
+# Public example dataset registration config
+# ============================================================================
+
+dataset_id: "EXAMPLE_Lung_scRNA_2grp_v1"
+display_name: "Example lung scRNA two-group dataset"
+dataset_type: "internally_curated"
+disease: "Lung Cancer"
+subtype: "Other"
+modality: "scrna"
+data_level: "raw"
+source_name: "example_source"
+source_accession: null
+owner: "example_user"
+
+n_cohorts_claimed: 1
+n_samples_claimed: 4
+n_samples_aligned: null
+
+status: "registered"
+intake_qc_status: "pending"
+harmonization_status: "pending"
+analysis_qc_status: "pending"
+atlas_role: "exploratory"
+inclusion_decision: "pending"
+
+download_date: "2026-01-01"
+register_date: "2026-01-01"
+last_update: "2026-01-01"
+
+paths:
+  raw_root: "data/raw/internally_generated/EXAMPLE_Lung_scRNA_2grp_v1"
+  manifest_root: "data/raw/internally_generated/EXAMPLE_Lung_scRNA_2grp_v1/manifests"
+  qc_root: "results/qc/EXAMPLE_Lung_scRNA_2grp_v1/intake"
+  stage_root: "data/processed/curated/scrna/EXAMPLE_Lung_scRNA_2grp_v1"
+
+files:
+  sample_manifest:
+    csv: "sample_manifest.csv"
+
+notes: "Public example only. Put real internal dataset metadata in configs_private/."

@@ -165,7 +165,7 @@ Every dataset must have a unique `dataset_id`.
 `<Class>_<Source>_<Subtype>_<Modality>_<ShortDesc>_<Date>_vX`
 
 **Example:**
-`VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1`
+`EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1`
 
 This `dataset_id` must be used consistently across:
 - HPC folder names

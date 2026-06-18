@@ -44,6 +44,26 @@ safe_dev_off <- function() {
   try(dev.off(), silent = TRUE)
 }
 
+group_label_map <- c(
+  C = "Control (C)",
+  K = "Xan (K)"
+)
+
+label_group <- function(group) {
+  group <- as.character(group)
+  out <- group
+  hit <- group %in% names(group_label_map)
+  out[hit] <- unname(group_label_map[group[hit]])
+  out
+}
+
+label_contrast <- function(cname, numerator = NULL, denominator = NULL) {
+  if (!is.null(numerator) && !is.null(denominator)) {
+    return(sprintf("%s = %s vs %s", cname, label_group(numerator), label_group(denominator)))
+  }
+  cname
+}
+
 normalize_comparisons <- function(comparisons) {
   comp_names <- names(comparisons)
   out <- vector("list", length(comparisons))
@@ -369,7 +389,7 @@ for (pw in dd_pathways) {
           cc_list[[grp]],
           signaling = pw,
           layout = "chord",
-          title.name = sprintf("%s - %s", pw, grp),
+          title.name = sprintf("%s - %s", pw, label_group(grp)),
           show.legend = (grp == groups_with_pw[length(groups_with_pw)])
         )
       }
@@ -383,7 +403,7 @@ for (pw in dd_pathways) {
           cc_list[[grp]],
           signaling = pw,
           layout = "chord",
-          title.name = sprintf("%s - %s", pw, grp),
+          title.name = sprintf("%s - %s", pw, label_group(grp)),
           show.legend = (grp == groups_with_pw[length(groups_with_pw)])
         )
       }
@@ -412,7 +432,7 @@ for (pw in dd_pathways) {
           signaling = pw,
           layout = "circle"
         )
-        title(main = sprintf("%s - %s", pw, grp), cex.main = 0.9, line = 0.5)
+        title(main = sprintf("%s - %s", pw, label_group(grp)), cex.main = 0.9, line = 0.5)
       }
       safe_dev_off()
 
@@ -425,7 +445,7 @@ for (pw in dd_pathways) {
           signaling = pw,
           layout = "circle"
         )
-        title(main = sprintf("%s - %s", pw, grp), cex.main = 0.9, line = 0.5)
+        title(main = sprintf("%s - %s", pw, label_group(grp)), cex.main = 0.9, line = 0.5)
       }
       safe_dev_off()
 
@@ -453,6 +473,7 @@ for (pw in dd_pathways) {
         lr_tbl <- p_lr$data
         if (!is.null(lr_tbl)) {
           lr_tbl$group <- grp
+          lr_tbl$group_label <- label_group(grp)
           lr_tbl$pathway <- pw
           lr_tables[[grp]] <- lr_tbl
         }
@@ -503,7 +524,7 @@ for (pw in dd_pathways) {
           signaling = pw,
           color.heatmap = heatmap_color,
           font.size = heatmap_font_size,
-          title.name = sprintf("%s - %s", pw, grp)
+          title.name = sprintf("%s - %s", pw, label_group(grp))
         )
       }, error = function(e) {
         cat(sprintf("    [note] Heatmap skip %s/%s: %s\n", pw, grp, e$message))
@@ -520,7 +541,7 @@ for (pw in dd_pathways) {
           signaling = pw,
           color.heatmap = heatmap_color,
           font.size = heatmap_font_size,
-          title.name = sprintf("%s - %s", pw, grp)
+          title.name = sprintf("%s - %s", pw, label_group(grp))
         )
       }, error = function(e) NULL)
     }
@@ -546,12 +567,12 @@ for (pw in dd_pathways) {
         netVisual_chord_gene(
           cc_list[[grp]],
           signaling = pw,
-          title.name = sprintf("%s genes - %s", pw, grp),
+          title.name = sprintf("%s genes - %s", pw, label_group(grp)),
           legend.pos.x = 5
         )
       }, error = function(e) {
         plot.new()
-        title(sprintf("%s/%s: %s", pw, grp, e$message), cex.main = 0.8)
+        title(sprintf("%s/%s: %s", pw, label_group(grp), e$message), cex.main = 0.8)
       })
     }
     safe_dev_off()
@@ -564,12 +585,12 @@ for (pw in dd_pathways) {
         netVisual_chord_gene(
           cc_list[[grp]],
           signaling = pw,
-          title.name = sprintf("%s genes - %s", pw, grp),
+          title.name = sprintf("%s genes - %s", pw, label_group(grp)),
           legend.pos.x = 5
         )
       }, error = function(e) {
         plot.new()
-        title(sprintf("%s/%s: skipped", pw, grp), cex.main = 0.8)
+        title(sprintf("%s/%s: skipped", pw, label_group(grp)), cex.main = 0.8)
       })
     }
     safe_dev_off()
@@ -651,7 +672,7 @@ if (length(ct_pairs) == 0) {
           title.name = sprintf("%s -> %s : %s",
                                paste(src_resolved, collapse = "/"),
                                paste(tgt_resolved, collapse = "/"),
-                               cname)
+                               label_contrast(cname, num, den))
         )
         if (!is.null(pair_bubble_thresh)) bubble_args$thresh <- pair_bubble_thresh
 
@@ -694,6 +715,7 @@ if (length(ct_pairs) == 0) {
               source = all_celltypes[si],
               target = all_celltypes[ti],
               group = grp,
+              group_label = label_group(grp),
               total_prob = total_p,
               stringsAsFactors = FALSE
             )
@@ -704,13 +726,14 @@ if (length(ct_pairs) == 0) {
       if (length(prob_rows) > 0) {
         prob_df <- bind_rows(prob_rows)
 
-        p_bar <- ggplot(prob_df, aes(x = group, y = total_prob, fill = group)) +
+        p_bar <- ggplot(prob_df, aes(x = group_label, y = total_prob, fill = group_label)) +
           geom_col(width = 0.6) +
           facet_wrap(~ paste(source, "->", target), scales = "free_y") +
           labs(
             title = sprintf("Communication probability: %s -> %s",
                             paste(src_resolved, collapse = "/"),
                             paste(tgt_resolved, collapse = "/")),
+            subtitle = "Control (C) vs Xan (K)",
             x = "Group",
             y = "Total probability (sum over all LR pairs)"
           ) +
@@ -755,6 +778,7 @@ cat("\n[step] Writing summary reports...\n")
 
 if (isTRUE(cfg$output$save_qc_tables) && length(pw_summary_rows) > 0) {
   pw_summary <- bind_rows(pw_summary_rows)
+  pw_summary$group_label <- label_group(pw_summary$group)
   fwrite(pw_summary, file.path(out$deep_reports, "pathway_group_summary.csv"))
   cat(sprintf("[report] pathway_group_summary.csv: %d rows\n", nrow(pw_summary)))
 

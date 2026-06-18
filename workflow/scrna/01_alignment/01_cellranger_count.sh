@@ -6,8 +6,8 @@
 #
 # Usage:
 #   bash workflow/scrna/01_alignment/01_cellranger_count.sh \
-#       --dataset INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1 \
-#       --samples "A1_1 A1_2 FL_1 FL_2 mc_1 mc_2" \
+#       --dataset EXAMPLE_Lung_scRNA_2grp_v1 \
+#       --samples "control_1 control_2 treatment_1 treatment_2" \
 #       --cores 32 \
 #       --mem 128 \
 #       --bam true \
@@ -15,7 +15,7 @@
 #
 # Or run all samples auto-detected from fastq/ directory:
 #   bash workflow/scrna/01_alignment/01_cellranger_count.sh \
-#       --dataset INT_Novogene_LLC_scRNA_3grp6samp_20260330_v1 \
+#       --dataset EXAMPLE_Lung_scRNA_2grp_v1 \
 #       --auto
 #
 # Prerequisites:

@@ -412,10 +412,10 @@ if (interactive()) {
   # ── 交互式模式（RStudio Web，推荐）──────────────────────────────────────────
   #
   # 单数据集全量 Onboarding：
-  # onboard_dataset("VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1")
+  # onboard_dataset("EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1")
   #
   # 单数据集断点续跑（跳过已完成步骤）：
-  # onboard_dataset("VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1",
+  # onboard_dataset("EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1",
   #                 resume = TRUE)
   #
   # 批量全量 Onboarding：

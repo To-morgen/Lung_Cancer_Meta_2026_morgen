@@ -1,24 +1,20 @@
 #!/usr/bin/env Rscript
 # ============================================================================
-# run_integration_pipeline.R — Phase 4+5: Integration + Clustering
+# run_integration_pipeline.R — Phase 04: Integration
 #
 # Pipeline:
 #   01. Harmony batch correction              (04_integrate/)
-#   02. FindClusters + UMAP                   (05_cluster/)
-#   03. Cluster QC & composition              (05_cluster/)
 # ============================================================================
 
 library(here)
 
 steps <- list(
-  list(dir = "04_integrate", script = "01_harmony.R"),
-  list(dir = "05_cluster",   script = "01_cluster_umap.R"),
-  list(dir = "05_cluster",   script = "02_cluster_qc.R")
+  list(dir = "04_integrate", script = "01_harmony.R")
 )
 
 cat("\n")
 cat("╔══════════════════════════════════════════════════════╗\n")
-cat("║   Phase 4+5: Integration + Clustering Pipeline      ║\n")
+cat("║   Phase 04: Integration Pipeline                      ║\n")
 cat(sprintf("║   Started:  %s                ║\n", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
 cat(sprintf("║   Steps:    %d                                        ║\n", length(steps)))
 cat("╚══════════════════════════════════════════════════════╝\n\n")
@@ -48,7 +44,7 @@ for (s in steps) {
 
 cat("\n\n")
 cat("╔══════════════════════════════════════════════════════╗\n")
-cat("║          Phase 4+5 Pipeline Summary                  ║\n")
+cat("║          Phase 04 Pipeline Summary                    ║\n")
 cat("╠══════════════════════════════════════════════════════╣\n")
 for (s in names(timings)) {
   t <- timings[[s]]
@@ -62,9 +58,7 @@ if (n_fail > 0) {
   cat(sprintf("⚠️  %d step(s) failed.\n", n_fail))
   quit(status = 1)
 } else {
-  cat("✅ All Phase 4+5 steps completed!\n\n")
-  cat("Next steps:\n")
-  cat("  1. Review plots in results/scrna/05_cluster/plots/\n")
-  cat("  2. Choose final clustering resolution\n")
-  cat("  3. Proceed to Phase 6: Annotation\n")
+  cat("✅ Phase 04 integration completed!\n\n")
+  cat("Next step:\n")
+  cat("  1. Run Phase 05: Clustering + cluster QC\n")
 }

@@ -938,7 +938,7 @@ run_all_vendor_qc <- function(config_dir    = CONFIG_ROOT,
 if (interactive()) {
   # ── 交互式模式（RStudio Web，推荐）──────────────────────────────────────────
   # 单数据集 QC：
-  # run_vendor_qc("VEND_AIshixin_LUAD_Bulk_22Cohorts_3019_20260307_v1")
+  # run_vendor_qc("EXAMPLE_Lung_Bulk_PublicCohort_20260101_v1")
   #
   # 批量 QC（仅处理 pending 状态）：
   # run_all_vendor_qc()
