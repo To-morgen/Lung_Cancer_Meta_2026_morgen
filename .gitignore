@@ -17,6 +17,7 @@ Thumbs.db
 .Rhistory           # Recommended ignore: command history may leak paths/tokens
 .RData              # MUST ignore: workspace dump -> big + merge conflicts
 .Ruserdata          # Recommended ignore: user state/cache
+Rplots.pdf          # Default graphics device output; never a source artifact
 # NOTE: Do NOT ignore *.Rproj (project anchor should be tracked)
 
 # --- Python & Jupyter ---
@@ -61,14 +62,8 @@ figures/
 !metadata/.gitkeep
 !scripts/.gitkeep
 
-# OPTIONAL: allow small, publication-critical final outputs
-
-!figures/final/
-!figures/final/*.pdf
-!figures/final/*.png
-!figures/final/*.tif
-!figures/final/*.tiff
-!figures/final/*.svg
+# Rendered manuscript figures remain private until an explicit release.
+# Track generic plotting code and synthetic fixtures, not study outputs.
 
 # --- Common Bioinformatics Bulky Formats ---
 # Sequencing / Alignment

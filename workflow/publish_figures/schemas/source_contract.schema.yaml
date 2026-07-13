@@ -1,0 +1,43 @@
+schema_version: 1
+description: Declarative schema used by R/contracts.R.
+registry:
+  required:
+    - schema_version
+    - contracts
+contract:
+  required:
+    - id
+    - state
+    - required_for
+    - privacy
+    - source
+  enums:
+    state:
+      - present
+      - derivable
+      - compute_required
+      - decision_required
+      - optional
+      - blocked
+    required_for:
+      - main
+      - supplement
+      - optional
+    privacy:
+      - public
+      - internal
+      - restricted
+    source_type:
+      - table
+      - object
+      - directory
+      - none
+  source:
+    fields:
+      type: scalar
+      path: project-relative scalar
+      format: csv, tsv, txt, rds, qs, or directory
+      required_columns: list
+  optional:
+    producer: scalar
+    notes: scalar

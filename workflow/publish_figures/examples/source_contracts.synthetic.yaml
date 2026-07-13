@@ -1,0 +1,55 @@
+schema_version: 1
+contracts:
+  - id: qc_sample_metrics
+    state: present
+    required_for: main
+    privacy: public
+    producer: synthetic_fixture
+    source:
+      type: table
+      path: workflow/publish_figures/examples/fixtures/qc_sample_metrics.csv
+      format: csv
+      required_columns:
+        - sample_id
+        - group_key
+        - metric
+        - value
+        - unit
+
+  - id: annotation_dotplot_data
+    state: present
+    required_for: main
+    privacy: public
+    producer: synthetic_fixture
+    source:
+      type: table
+      path: workflow/publish_figures/examples/fixtures/dotplot_expression.csv
+      format: csv
+      required_columns:
+        - annotation_level
+        - annotation
+        - feature
+        - avg_expr
+        - avg_expr_scaled
+        - pct_expr
+        - n_cells
+        - assay
+        - layer
+
+  - id: validation_umap_cells
+    state: derivable
+    required_for: optional
+    privacy: public
+    producer: export_umap_cells
+    source:
+      type: table
+      path: results/publish_figures/synthetic/figure_data/umap_cells.csv
+      format: csv
+      required_columns:
+        - cell_id
+        - sample_id
+        - group_key
+        - annotation_level
+        - annotation
+        - dim1
+        - dim2

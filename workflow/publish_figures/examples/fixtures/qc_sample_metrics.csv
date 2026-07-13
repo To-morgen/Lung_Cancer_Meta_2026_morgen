@@ -1,0 +1,5 @@
+sample_id,group_key,metric,value,unit
+SYN_A,reference,retained_cells,4800,cells
+SYN_B,reference,retained_cells,5100,cells
+SYN_C,intervention,retained_cells,4950,cells
+SYN_D,intervention,retained_cells,5050,cells
