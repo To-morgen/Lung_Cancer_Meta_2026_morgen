@@ -1,0 +1,28 @@
+schema_version: 1
+manuscript_id: synthetic_demo
+dataset_id: synthetic_dataset
+display_groups:
+  reference: Reference
+  intervention: Intervention
+figures:
+  - id: SCRNA-DEMO
+    panels:
+      - id: A
+        builder: qc_sample_metrics
+        source_contracts:
+          - qc_sample_metrics
+        dimensions:
+          layout: single
+          height_in: 2.4
+        output_formats:
+          - pdf
+          - png
+      - id: B
+        builder: annotation_dotplot
+        source_contracts:
+          - annotation_dotplot_data
+        dimensions:
+          layout: one_half
+          height_in: 3.2
+        output_formats:
+          - pdf

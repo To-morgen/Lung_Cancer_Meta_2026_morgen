@@ -1,0 +1,5 @@
+annotation_level,annotation,feature,avg_expr,avg_expr_scaled,pct_expr,n_cells,assay,layer
+level_2,Type_A,Gene_1,1.2,0.8,72.0,400,RNA,data
+level_2,Type_A,Gene_2,0.3,-0.4,25.0,400,RNA,data
+level_2,Type_B,Gene_1,0.4,-0.2,31.0,350,RNA,data
+level_2,Type_B,Gene_2,1.4,1.0,81.0,350,RNA,data

@@ -1,0 +1,22 @@
+schema_version: 1
+description: Public structure for private manuscript figure specifications.
+required:
+  - schema_version
+  - manuscript_id
+  - dataset_id
+  - display_groups
+  - figures
+figure:
+  required:
+    - id
+    - panels
+panel:
+  required:
+    - id
+    - builder
+    - source_contracts
+  optional:
+    - dimensions
+    - parameters
+    - output_formats
+privacy_rule: Real figure specs belong under configs_private/figures/.
