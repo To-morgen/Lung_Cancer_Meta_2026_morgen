@@ -27,6 +27,32 @@ inside this module.
 5. Render panels from validated tables, not directly from ad hoc objects.
 6. Write one source-data table and one provenance record per panel.
 
+## Figure-data export
+
+The generic Seurat exporter reads a private YAML spec and writes one directory
+per declared view. A view fixes the object, annotation column, cell filter,
+annotation order, and requested output contracts.
+
+    Rscript workflow/publish_figures/export_figure_data.R \
+      configs_private/figures/<dataset>/export_spec.yaml \
+      "$PROJECT_ROOT"
+
+Real export specs remain ignored. The public schema is documented in
+`schemas/export_spec.schema.yaml`; tests generate a synthetic Seurat object at
+runtime and do not commit study data.
+
+Supported outputs:
+
+- `umap_cells.csv`: fixed coordinates plus raw sample/group keys and annotation
+- `dotplot_expression.csv`: grouped average expression, scaled expression, and
+  detection fraction for a private feature panel
+- `sample_composition.csv`: zero-complete sample-by-annotation counts and
+  proportions with an explicit `denominator_scope` (`view` or `object`)
+
+Filters use declarative `include`/`exclude` values only. Export specs cannot run
+arbitrary R expressions. Display labels such as treatment names are added later
+by private figure specs, never by the exporter.
+
 Rendered PDFs or PNGs are not source contracts. For example, a DotPlot is ready
 only when its grouped average-expression and detection-fraction table exists.
 
@@ -63,7 +89,7 @@ dotplot_expression:
 sample_composition:
 
     sample_id, group_key, annotation_level, annotation, n_cells,
-    denominator_cells, proportion
+    denominator_cells, denominator_scope, proportion
 
 Internal group keys are mapped to display labels only in the private figure
 spec. Generic exporters and builders must not hardcode treatment names.

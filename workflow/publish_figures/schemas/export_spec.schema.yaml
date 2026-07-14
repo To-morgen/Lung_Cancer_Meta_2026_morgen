@@ -1,0 +1,52 @@
+schema_version: 1
+description: Public structure for private Seurat figure-data export specifications.
+required:
+  - schema_version
+  - dataset_id
+  - output_root
+  - objects
+  - views
+object:
+  required:
+    - path
+    - sample_column
+    - group_column
+  optional:
+    - assay
+    - layer
+    - reduction
+view:
+  required:
+    - id
+    - object
+    - annotation_column
+    - annotation_level
+    - outputs
+  output_types:
+    - umap
+    - dotplot
+    - composition
+  optional:
+    - annotation_order
+    - sample_order
+    - filters
+    - subset
+    - reduction
+    - assay
+    - layer
+    - features
+    - feature_groups
+    - feature_source
+    - missing_feature_policy
+    - scale_limits
+    - composition_denominators
+filter:
+  required:
+    - column
+  optional:
+    - include
+    - exclude
+composition_denominators:
+  - view
+  - object
+privacy_rule: Real object paths, annotation orders, and feature selections belong under configs_private/figures/.
