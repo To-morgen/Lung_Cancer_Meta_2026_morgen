@@ -4,6 +4,7 @@ required:
   - schema_version
   - manuscript_id
   - dataset_id
+  - output_root
   - display_groups
   - figures
 figure:
@@ -19,4 +20,8 @@ panel:
     - dimensions
     - parameters
     - output_formats
+builders:
+  - atlas_umap
+  - annotation_dotplot
+  - sample_composition
 privacy_rule: Real figure specs belong under configs_private/figures/.

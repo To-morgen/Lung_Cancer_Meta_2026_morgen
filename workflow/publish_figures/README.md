@@ -53,6 +53,23 @@ Filters use declarative `include`/`exclude` values only. Export specs cannot run
 arbitrary R expressions. Display labels such as treatment names are added later
 by private figure specs, never by the exporter.
 
+## Panel rendering
+
+The initial renderer supports three table-driven builders:
+
+- `atlas_umap`
+- `annotation_dotplot`
+- `sample_composition`
+
+    Rscript workflow/publish_figures/render_figures.R \
+      configs_private/figures/<dataset>/figure_spec.yaml \
+      configs_private/figures/<dataset>/source_contracts.yaml \
+      "$PROJECT_ROOT"
+
+Each panel writes the rendered files, filtered panel source data, and a metadata
+YAML record. Composition panels refuse ambiguous inputs containing multiple
+denominator scopes unless the private panel spec selects one explicitly.
+
 Rendered PDFs or PNGs are not source contracts. For example, a DotPlot is ready
 only when its grouped average-expression and detection-fraction table exists.
 
