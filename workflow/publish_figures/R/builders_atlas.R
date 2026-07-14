@@ -49,6 +49,25 @@ map_display_groups <- function(group_keys, display_groups) {
   unname(mapping[as.character(group_keys)])
 }
 
+resolve_annotation_labels <- function(parameters, annotation_order) {
+  configured <- unlist(
+    builder_value_or(parameters$annotation_labels, character()),
+    use.names = TRUE
+  )
+  labels <- stats::setNames(annotation_order, annotation_order)
+  if (length(configured) > 0L) {
+    unknown <- setdiff(names(configured), annotation_order)
+    if (length(unknown) > 0L) {
+      stop("annotation_labels contains unknown keys: ", paste(unknown, collapse = ", "), call. = FALSE)
+    }
+    labels[names(configured)] <- configured
+  }
+  if (anyDuplicated(unname(labels))) {
+    stop("annotation_labels must be unique.", call. = FALSE)
+  }
+  labels
+}
+
 build_atlas_umap <- function(data, parameters = list(), context = list()) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required for atlas_umap.", call. = FALSE)
@@ -69,6 +88,11 @@ build_atlas_umap <- function(data, parameters = list(), context = list()) {
     parameter_vector(parameters, "annotation_order")
   )
   data$annotation <- factor(data$annotation, levels = annotation_order)
+  annotation_labels <- resolve_annotation_labels(parameters, annotation_order)
+  data$display_annotation <- factor(
+    unname(annotation_labels[as.character(data$annotation)]),
+    levels = unname(annotation_labels)
+  )
   palette <- resolve_named_palette(parameters$annotation_palette, annotation_order)
   split_by_group <- isTRUE(builder_value_or(parameters$split_by_group, FALSE))
   if (split_by_group) {
@@ -107,13 +131,16 @@ build_atlas_umap <- function(data, parameters = list(), context = list()) {
 
   if (isTRUE(builder_value_or(parameters$label, FALSE))) {
     label_data <- stats::aggregate(cbind(dim1, dim2) ~ annotation, data, stats::median)
+    label_data$display_annotation <- unname(
+      annotation_labels[as.character(label_data$annotation)]
+    )
     counts <- table(data$annotation)
     min_cells <- as.integer(builder_value_or(parameters$min_label_cells, 25L))
     label_data <- label_data[counts[as.character(label_data$annotation)] >= min_cells, , drop = FALSE]
     if (requireNamespace("ggrepel", quietly = TRUE)) {
       plot <- plot + ggrepel::geom_text_repel(
         data = label_data,
-        ggplot2::aes(label = annotation),
+        ggplot2::aes(label = display_annotation),
         colour = "black",
         size = as.numeric(builder_value_or(parameters$label_size, 2.1)),
         box.padding = 0.25,
@@ -126,7 +153,7 @@ build_atlas_umap <- function(data, parameters = list(), context = list()) {
     } else {
       plot <- plot + ggplot2::geom_text(
         data = label_data,
-        ggplot2::aes(label = annotation),
+        ggplot2::aes(label = display_annotation),
         colour = "black",
         size = as.numeric(builder_value_or(parameters$label_size, 2.1)),
         show.legend = FALSE

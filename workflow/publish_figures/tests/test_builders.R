@@ -88,6 +88,7 @@ figure_spec <- list(
           id = "A", builder = "atlas_umap", source_contracts = "umap",
           parameters = list(
             annotation_order = c("TypeA", "TypeB"),
+            annotation_labels = list(TypeA = "Type A", TypeB = "Type B"),
             annotation_palette = list(TypeA = "#0072B2", TypeB = "#D55E00"),
             label = TRUE
           ),

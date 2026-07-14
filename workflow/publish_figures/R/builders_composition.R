@@ -56,6 +56,11 @@ build_sample_composition <- function(data, parameters = list(), context = list()
     parameter_vector(parameters, "annotation_order")
   )
   data$annotation <- factor(data$annotation, levels = annotation_order)
+  annotation_labels <- resolve_annotation_labels(parameters, annotation_order)
+  data$display_annotation <- factor(
+    unname(annotation_labels[as.character(data$annotation)]),
+    levels = unname(annotation_labels)
+  )
   data$display_group <- map_display_groups(data$group_key, context$display_groups)
   display_order <- unname(unlist(context$display_groups, use.names = TRUE))
   data$display_group <- factor(data$display_group, levels = display_order)
@@ -89,7 +94,7 @@ build_sample_composition <- function(data, parameters = list(), context = list()
     ) +
     ggplot2::labs(x = NULL, y = "Cell proportion", fill = NULL) +
     ggplot2::facet_wrap(
-      ~annotation,
+      ~display_annotation,
       ncol = as.integer(builder_value_or(parameters$ncol, 3L)),
       scales = builder_value_or(parameters$facet_scales, "fixed")
     ) +

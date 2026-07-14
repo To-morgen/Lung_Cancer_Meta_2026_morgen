@@ -69,6 +69,8 @@ The initial renderer supports three table-driven builders:
 Each panel writes the rendered files, filtered panel source data, and a metadata
 YAML record. Composition panels refuse ambiguous inputs containing multiple
 denominator scopes unless the private panel spec selects one explicitly.
+Private `annotation_labels` mappings can replace internal annotation keys for
+display without changing the raw keys retained in panel source data.
 
 Rendered PDFs or PNGs are not source contracts. For example, a DotPlot is ready
 only when its grouped average-expression and detection-fraction table exists.

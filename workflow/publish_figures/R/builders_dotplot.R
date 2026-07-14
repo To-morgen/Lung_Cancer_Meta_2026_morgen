@@ -31,7 +31,12 @@ build_annotation_dotplot <- function(data, parameters = list(), context = list()
   } else {
     unique(as.character(data$feature))
   }
-  data$annotation <- factor(data$annotation, levels = rev(annotation_order))
+  annotation_labels <- resolve_annotation_labels(parameters, annotation_order)
+  data$annotation <- factor(data$annotation, levels = annotation_order)
+  data$display_annotation <- factor(
+    unname(annotation_labels[as.character(data$annotation)]),
+    levels = rev(unname(annotation_labels))
+  )
   data$feature <- factor(data$feature, levels = feature_order)
   if ("feature_group" %in% colnames(data)) {
     feature_table <- unique(data[, c("feature", "feature_group", "feature_order")])
@@ -42,7 +47,7 @@ build_annotation_dotplot <- function(data, parameters = list(), context = list()
   color_limits <- as.numeric(unlist(builder_value_or(parameters$color_limits, c(-2.5, 2.5))))
   plot <- ggplot2::ggplot(
     data,
-    ggplot2::aes(feature, annotation, size = pct_expr, colour = avg_expr_scaled)
+    ggplot2::aes(feature, display_annotation, size = pct_expr, colour = avg_expr_scaled)
   ) +
     ggplot2::geom_point(alpha = 0.95) +
     ggplot2::scale_size_continuous(
